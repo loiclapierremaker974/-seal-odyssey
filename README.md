@@ -2,6 +2,8 @@
 
 Cette arborescence est une reprise locale propre de **Seal Odyssey** : une vertical slice Web/Three.js pensée d'abord pour l'iPhone en paysage, installable comme PWA.
 
+[![Test and deploy Seal Odyssey](https://github.com/loiclapierremaker974/-seal-odyssey/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/loiclapierremaker974/-seal-odyssey/actions/workflows/deploy-pages.yml)
+
 > [!IMPORTANT]
 > Le dossier maître décrit une bêta avancée et cite un ancien dépôt GitHub, mais ni les sources de cette bêta, ni son archive ZIP, ni un dépôt exploitable n'étaient présents dans la transmission du 2 octobre 2026. Cette fondation ne prétend donc pas être cette bêta. Le phoque, le décor et les animations actuellement produits par le code sont des **proxies procéduraux temporaires**.
 
