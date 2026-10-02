@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#061a23" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Seal Odyssey" />
+    <meta
+      name="description"
+      content="Seal Odyssey - fondation P0 jouable sur mobile, construite avec Three.js."
+    />
+    <link rel="manifest" href="%BASE_URL%manifest.webmanifest" />
+    <link rel="icon" href="%BASE_URL%icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="%BASE_URL%icons/icon.svg" />
+    <title>Seal Odyssey - P0</title>
+  </head>
+  <body>
+    <div id="app" aria-label="Seal Odyssey"></div>
+    <noscript>
+      <main class="noscript-message">
+        Seal Odyssey requiert JavaScript pour afficher la scène 3D.
+      </main>
+    </noscript>
+    <script type="module" src="/src/main.js"></script>
+    <script type="module">
+      if ('serviceWorker' in navigator && import.meta.env.PROD) {
+        let refreshing = false;
+
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (refreshing) return;
+          refreshing = true;
+          window.location.reload();
+        });
+
+        window.addEventListener('load', async () => {
+          try {
+            const workerUrl = new URL(
+              `${import.meta.env.BASE_URL}service-worker.js`,
+              window.location.href,
+            );
+            const registration = await navigator.serviceWorker.register(workerUrl, {
+              scope: import.meta.env.BASE_URL,
+            });
+
+            const announceUpdate = () => {
+              if (!registration.waiting) return;
+              window.__SEAL_SW_UPDATE__ = registration;
+              window.dispatchEvent(
+                new CustomEvent('seal:sw-update-ready', {
+                  detail: { registration },
+                }),
+              );
+            };
+
+            announceUpdate();
+            registration.addEventListener('updatefound', () => {
+              const installing = registration.installing;
+              installing?.addEventListener('statechange', () => {
+                if (
+                  installing.state === 'installed' &&
+                  navigator.serviceWorker.controller
+                ) {
+                  announceUpdate();
+                }
+              });
+            });
+          } catch (error) {
+            console.warn('[Seal Odyssey] Service worker indisponible.', error);
+          }
+        });
+      }
+    </script>
+  </body>
+</html>

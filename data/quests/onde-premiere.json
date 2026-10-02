@@ -1,0 +1,46 @@
+{
+  "id": "onde-premiere",
+  "title": "L'Onde Première",
+  "description": "Retrouver trois Échos anciens, puis revenir au Site Ancien d'Aelys.",
+  "autoStart": true,
+  "stages": [
+    {
+      "id": "retrouver-les-echos",
+      "title": "Retrouver les trois Échos",
+      "description": "Chaque Écho révèle une trace de l'histoire d'Aqualys et de la Fracture.",
+      "objectives": [
+        {
+          "id": "trois-echos-anciens",
+          "event": "echo.discovered",
+          "label": "Échos anciens",
+          "requiredCount": 3,
+          "uniqueBy": "id",
+          "match": {
+            "field": "id",
+            "anyOf": ["echo-rivage", "echo-lagune", "echo-profondeur"]
+          }
+        }
+      ],
+      "nextStageId": "reactiver-le-site"
+    },
+    {
+      "id": "reactiver-le-site",
+      "title": "Revenir au Site Ancien",
+      "description": "Rapporter les trois Échos afin de restaurer le Premier Écho du Grand Courant.",
+      "objectives": [
+        {
+          "id": "site-onde-premiere",
+          "event": "site.activated",
+          "label": "Site Ancien activé",
+          "requiredCount": 1,
+          "uniqueBy": "id",
+          "match": {
+            "field": "id",
+            "equals": "site-onde-premiere"
+          }
+        }
+      ],
+      "nextStageId": null
+    }
+  ]
+}

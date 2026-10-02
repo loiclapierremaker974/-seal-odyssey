@@ -1,0 +1,22 @@
+node_modules/
+.pnpm-store/
+dist/
+.vite/
+*.log
+.DS_Store
+Thumbs.db
+.env
+.env.*
+!.env.example
+coverage/
+tmp/
+
+# Transmission and machine-local files: never publish these from the public repo.
+/Seal_Odyssey_Dossier_Maitre_Transmission_Codex_2026-10-01.pdf
+/seal1.png
+/seal2.png
+/seal3.png
+/seal45.png
+/78790bdf-8e49-43d6-8948-e37c36957672.png
+/ChatGPT Installer.exe
+/Microsoft.Services.Store.winmd

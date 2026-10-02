@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title description">
+  <title id="title">Seal Odyssey</title>
+  <desc id="description">Un phoque argenté au-dessus de vagues bleues.</desc>
+  <defs>
+    <linearGradient id="ocean" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#0a4050" />
+      <stop offset="1" stop-color="#031017" />
+    </linearGradient>
+    <linearGradient id="seal" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#f4fbfb" />
+      <stop offset="0.55" stop-color="#9fb9bd" />
+      <stop offset="1" stop-color="#4c737b" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#ocean)" />
+  <circle cx="392" cy="116" r="42" fill="#ffd58b" opacity=".9" />
+  <path d="M35 371c61-41 112-42 164-5 54 39 108 42 174 0 39-25 75-27 104-15v104H35Z" fill="#0a93ae" />
+  <path d="M35 406c58-25 112-18 163 13 52 32 109 31 174-3 39-21 74-25 105-17v56H35Z" fill="#063e5c" />
+  <path d="M122 312c29-91 83-154 161-171 35-8 73 4 90 33 16 27 12 59-10 77-20 16-47 18-71 9 30 22 53 50 64 82-76 45-158 39-234-30Z" fill="url(#seal)" />
+  <path d="M341 156c34-21 68-16 92 7-28 7-45 22-53 45-8-25-21-42-39-52Z" fill="#7f9fa5" />
+  <ellipse cx="326" cy="194" rx="11" ry="13" fill="#07171c" />
+  <circle cx="330" cy="190" r="3" fill="#f7ffff" />
+  <path d="M363 222c19-8 34-7 45 2-14 12-29 14-45 6Z" fill="#172f35" />
+  <path d="M168 265c-45-5-78 10-99 45 45 3 78-8 99-31Z" fill="#6f959c" />
+  <g fill="#2f555c" opacity=".75">
+    <circle cx="231" cy="226" r="7" />
+    <circle cx="256" cy="204" r="5" />
+    <circle cx="210" cy="259" r="4" />
+    <circle cx="273" cy="244" r="6" />
+  </g>
+</svg>

@@ -1,0 +1,29 @@
+{
+  "id": "./",
+  "name": "Seal Odyssey",
+  "short_name": "Seal Odyssey",
+  "description": "Explorez Aqualys dans la fondation P0 de Seal Odyssey.",
+  "lang": "fr-FR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#031017",
+  "theme_color": "#061a23",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
