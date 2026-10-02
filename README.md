@@ -89,6 +89,10 @@ hud.showToast('Écho retrouvé', { tone: 'success' });
 
 La configuration Vite utilise des URLs relatives par défaut pour pouvoir publier la même build à la racine d'un domaine ou dans un sous-chemin GitHub Pages. Une CI peut fournir `VITE_BASE_PATH` et `VITE_BUILD_ID` pendant la construction.
 
+## Déploiement GitHub Pages
+
+Le workflow [Test and deploy Seal Odyssey](https://github.com/loiclapierremaker974/-seal-odyssey/actions/workflows/deploy-pages.yml) exécute les tests, construit la version de production avec le bon sous-chemin, puis la publie dès que Pages est activé. GitHub impose une activation administrative unique pour chaque nouveau dépôt : ouvrir [Settings → Pages](https://github.com/loiclapierremaker974/-seal-odyssey/settings/pages), choisir **GitHub Actions** comme source, puis relancer le workflow. Les publications suivantes sont automatiques à chaque push sur `main`.
+
 ## PWA et mises à jour
 
 Le cache porte un numéro de version dans `public/service-worker.js`. Lorsqu'un nouveau worker est installé, le HUD propose **Mettre à jour** ; la page ne bascule vers la nouvelle build qu'après cette action. Pour une prochaine publication :
@@ -112,4 +116,3 @@ Voir [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md), [docs/ASSET_INVENTORY.md]
 ## Propriété et canon
 
 Le projet et son dossier maître sont attribués à Loïc Lapierre. Les noms, systèmes et contenus restent soumis au canon consolidé et aux validations de droits décrits dans le dossier maître. Ne pas intégrer d'asset externe dans une version distribuée sans licence vérifiée et archivée.
-

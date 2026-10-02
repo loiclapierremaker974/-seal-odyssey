@@ -21,3 +21,5 @@ A clean P0 foundation was created because there was no recoverable beta source. 
 The foundation passes 25 domain tests and a production Vite build. It was also exercised in a headless Chrome mobile landscape viewport: boot, WebGL scene, introduction, HUD and tactile care dialog loaded without console errors after the visual-QA correction.
 
 Only source code, data, tests and project documentation are intended for the public repository. The confidential master PDF, local reference PNG files and unrelated machine files are explicitly excluded by `.gitignore`. GitHub Pages deployment is defined in `.github/workflows/deploy-pages.yml` and is gated by tests plus a production build.
+
+The first GitHub Actions runs confirmed that dependency installation, all 25 tests and the production build succeed on GitHub's runner. Deployment is waiting only for the repository's one-time Pages source selection (`Settings > Pages > GitHub Actions`); the connected GitHub integration does not expose that administrative endpoint. Until it is enabled, the workflow reports a warning and keeps the verified build job green instead of presenting the application code as failed.
