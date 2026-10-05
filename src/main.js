@@ -28,6 +28,7 @@ if (!root) {
 function createCanvas() {
   const canvas = document.createElement('canvas');
   canvas.className = 'game-canvas';
+  canvas.tabIndex = 0;
   canvas.setAttribute('aria-label', "Vue 3D du Rivage d'Aelys");
   root.append(canvas);
   return canvas;

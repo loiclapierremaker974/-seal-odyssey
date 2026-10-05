@@ -23,7 +23,7 @@ function fixture() {
   const canvas = new Target();
   canvas.ownerDocument = { defaultView: window };
   const input = new InputController({ canvas, createTouchControls: false });
-  const button = { closest: () => button };
+  const button = { closest: (selector) => selector.includes('button') ? button : null };
   return { window, canvas, input, button };
 }
 
@@ -63,4 +63,13 @@ test('interface arrows do not move the player and destroy detaches listeners', (
   input.destroy();
   window.emit('keydown', 'KeyW', canvas);
   assert.equal(input.getState().move.y, 0);
+});
+
+test('game movement continues after a toolbar button keeps focus', () => {
+  const { window, input, button } = fixture();
+  assert.equal(window.emit('keydown', 'KeyW', button).defaultPrevented, true);
+  assert.equal(input.getState().move.y, 1);
+  window.emit('keyup', 'KeyW', button);
+  assert.equal(input.getState().move.y, 0);
+  input.destroy();
 });

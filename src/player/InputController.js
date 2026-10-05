@@ -121,16 +121,23 @@ export class InputController {
     this.onInputModeChange?.(mode);
   }
 
-  _isInterfaceTarget(event) {
+  _isInterfaceTarget(event, buttonKeysOnly = false) {
     const targets = event.composedPath?.() || [event.target];
-    return targets.some((target) => target !== this.canvas && target?.closest?.(
-      'button, input, select, textarea, a[href], [role="button"], [role="dialog"], [contenteditable=""], [contenteditable="true"]',
-    ));
+    return targets.some((target) => {
+      if (target === this.canvas) return false;
+      if (target?.closest?.(
+        'input, select, textarea, [role="dialog"], [contenteditable=""], [contenteditable="true"]',
+      )) return true;
+      const button = target?.closest?.('button, a[href], [role="button"]');
+      return Boolean(button && (!buttonKeysOnly || [
+        'Enter', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+      ].includes(event.code)));
+    });
   }
 
   _bindBaseEvents() {
     this._listen(this.window, 'keydown', (event) => {
-      if (event.defaultPrevented || this._isInterfaceTarget(event)) return;
+      if (event.defaultPrevented || this._isInterfaceTarget(event, true)) return;
       const isMovement = MOVEMENT_KEYS.has(event.code);
       const button = KEY_TO_BUTTON[event.code];
       if (!isMovement && !button) return;
@@ -157,6 +164,7 @@ export class InputController {
     this._listen(this.canvas, 'pointerdown', (event) => {
       if (this._lookPointer !== null) return;
       if (event.pointerType === 'mouse' && event.button !== 0 && event.button !== 2) return;
+      this.canvas.focus?.({ preventScroll: true });
       this._lookPointer = {
         id: event.pointerId,
         x: event.clientX,
