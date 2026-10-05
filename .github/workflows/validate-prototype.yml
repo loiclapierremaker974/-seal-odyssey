@@ -22,7 +22,7 @@ jobs:
     env:
       VITE_BASE_PATH: /-seal-odyssey/
       VITE_BUILD_ID: validation-${{ github.sha }}
-      PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/seal-smoke/browsers
+      PLAYWRIGHT_BROWSERS_PATH: /tmp/seal-odyssey-browser-cache
     steps:
       - name: Check out the repository
         uses: actions/checkout@v6
