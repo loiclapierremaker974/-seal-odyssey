@@ -7,7 +7,7 @@ Cette arborescence est une reprise locale propre de **Seal Odyssey** : une verti
 > [!IMPORTANT]
 > Le dossier maître décrit une bêta avancée et cite un ancien dépôt GitHub, mais ni les sources de cette bêta, ni son archive ZIP, ni un dépôt exploitable n'étaient présents dans la transmission du 2 octobre 2026. Cette fondation ne prétend donc pas être cette bêta. Le phoque, le décor et les animations actuellement produits par le code sont des **proxies procéduraux temporaires**.
 
-Le PDF maître et les cinq PNG de référence présents à la racine restent des sources de travail. Ils ne sont pas intégrés comme assets de production : leur provenance et leur usage final doivent d'abord être confirmés. Les exécutables sans rapport avec le jeu ont été laissés intacts.
+Les dossiers de référence transmis par le créateur restent des sources de travail privées. Ils ne sont pas intégrés comme assets de production : leur provenance et leur usage final doivent d'abord être confirmés. Les exécutables sans rapport avec le jeu ont été laissés intacts.
 
 ## Démarrage local
 
@@ -70,7 +70,9 @@ src/
   player/GuardianController.js locomotion terre/surface/profondeur
   seals/SealEntity.js          données et état d'un phoque
   care/CareSystem.js           interactions de soin et confiance
-  world/createLumaProxy.js     modèle procédural explicitement temporaire
+  audio/AqualysAudio.js        ambiance synthétisée, activation volontaire, pause
+  world/createLumaProxy.js     modèle temporaire, réponse au mouillage
+  world/createAelysWater.js    eau, normales, profondeur et écume littorale
   ui/MobileHUD.js              HUD, introduction, contrôles et notification PWA
   ui/CarePanel.js              gestes tactiles de soin, préférences et feedback
 docs/                          statut vérifié, canon, assets et décisions
@@ -91,7 +93,17 @@ La configuration Vite utilise des URLs relatives par défaut pour pouvoir publie
 
 ## Déploiement GitHub Pages
 
+La fondation v0.1.0 a été publiée le 5 octobre 2026 : [ouvrir Seal Odyssey](https://loiclapierremaker974.github.io/-seal-odyssey/). Les nouvelles versions présentes dans une branche de travail ou une pull request ne remplacent pas cette publication.
+
 Le workflow [Test and deploy Seal Odyssey](https://github.com/loiclapierremaker974/-seal-odyssey/actions/workflows/deploy-pages.yml) exécute les tests, construit la version de production avec le bon sous-chemin, puis la publie dès que Pages est activé. GitHub impose une activation administrative unique pour chaque nouveau dépôt : ouvrir [Settings → Pages](https://github.com/loiclapierremaker974/-seal-odyssey/settings/pages), choisir **GitHub Actions** comme source, puis relancer le workflow. Les publications suivantes sont automatiques à chaque push sur `main`.
+
+## Ambiance et validation du rendu
+
+Le bouton **Activer le son** lance une ambiance générée dans le navigateur après une action volontaire. **Couper le son** la rend silencieuse. Le choix est conservé localement quand le stockage est disponible. L’audio se suspend quand l’onglet est masqué et reste facultatif si le navigateur le refuse.
+
+L’eau utilise une approximation du ciel, des normales animées et un champ de hauteur généré à partir du terrain d’Aelys. Ce rendu en une passe n’effectue pas de réflexion complète du décor ni de réfraction physique. Le pelage de Luma se mouille dans l’eau et sèche progressivement à terre, sans changer le schéma de sauvegarde.
+
+Le workflow `validate-prototype.yml` vérifie les tests de domaine, la build et le démarrage réel des shaders en Chromium/SwiftShader, pour les branches de travail et les pull requests. Les captures et diagnostics sont conservés dans les artifacts de chaque run. Ce contrôle logiciel ne mesure pas les performances d’un véritable iPhone.
 
 ## PWA et mises à jour
 
@@ -106,7 +118,7 @@ Le cache porte un numéro de version dans `public/service-worker.js`. Lorsqu'un 
 
 - Il s'agit d'une fondation P0 locale, pas d'une restauration de l'« Ultimate Beta » décrite par le dossier.
 - Luma et l'environnement sont des proxies procéduraux ; aucun modèle GLB, rig, morph facial, texture PBR finale ou animation de production n'a été fourni.
-- L'ambiance sonore et la musique de production sont absentes.
+- Une ambiance sonore procédurale accompagne la mer, l’immersion, les Échos et le soin. Les enregistrements et la musique de production restent absents.
 - Le périmètre vise une boucle courte : locomotion, eau, jauges, trois Échos, Site Ancien, soin/confiance et sauvegarde. Le monde vivant complet, les lignées, la colonie, l'artisanat et la narration étendue restent hors P0.
 - Les performances doivent encore être mesurées sur plusieurs générations d'iPhone. Le navigateur peut refuser le verrouillage d'orientation ou le plein écran ; l'installation sur l'écran d'accueil reste la voie iOS recommandée.
 - Le dépôt distant associé est [`loiclapierremaker974/-seal-odyssey`](https://github.com/loiclapierremaker974/-seal-odyssey). Le workflow `.github/workflows/deploy-pages.yml` teste et construit le projet avant toute publication GitHub Pages.

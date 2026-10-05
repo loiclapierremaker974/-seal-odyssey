@@ -1395,7 +1395,7 @@ canvas {
     grid-template-columns: minmax(180px, 31vw) minmax(150px, 1fr) auto;
   }
 
-  .build-badge {
+  .hud-tools {
     position: absolute;
     top: 48px;
     right: 0;
@@ -1467,4 +1467,36 @@ canvas {
     border-color: rgb(220 255 253 / 55%);
     opacity: 1;
   }
+}
+
+/* Exploration audio shares the existing HUD tool slot on small screens. */
+.hud-tools {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.sound-toggle {
+  min-height: 44px;
+  min-width: 80px;
+  padding: 7px 12px;
+  border: 1px solid rgb(188 232 230 / 32%);
+  border-radius: 999px;
+  background: rgb(3 20 28 / 82%);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.7rem;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.sound-toggle[aria-pressed="true"] {
+  border-color: var(--aqua);
+  color: var(--aqua);
+}
+
+.sound-toggle:focus-visible {
+  outline: 2px solid var(--sun);
+  outline-offset: 3px;
 }

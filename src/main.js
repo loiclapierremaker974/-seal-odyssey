@@ -1,5 +1,6 @@
 import './styles.css';
 
+import { AqualysAudio } from './audio/AqualysAudio.js';
 import { CareSystem } from './care/CareSystem.js';
 import { BUILD_VERSION, GameState } from './core/GameState.js';
 import { SaveStore } from './persistence/SaveStore.js';
@@ -12,7 +13,7 @@ import { AelysScene } from './world/AelysScene.js';
 import { createLumaProxy } from './world/createLumaProxy.js';
 
 const APP_VERSION =
-  typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.1.0';
+  typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.2.0';
 const BUILD_ID =
   typeof __BUILD_ID__ !== 'undefined'
     ? __BUILD_ID__
@@ -32,6 +33,16 @@ function createCanvas() {
   return canvas;
 }
 
+function readSoundPreference() {
+  try { return localStorage.getItem('seal-odyssey:sound') === 'on'; }
+  catch { return false; }
+}
+
+function saveSoundPreference(enabled) {
+  try { localStorage.setItem('seal-odyssey:sound', enabled ? 'on' : 'off'); }
+  catch { /* Audio remains usable when local storage is unavailable. */ }
+}
+
 function boot() {
   const canvas = createCanvas();
   const saveStore = new SaveStore();
@@ -39,6 +50,9 @@ function boot() {
   const gameState = loadedState ?? new GameState();
   const questSystem = new QuestSystem({ gameState });
   const careSystem = new CareSystem(gameState.luma);
+  const audio = new AqualysAudio({ muted: !readSoundPreference() });
+  let soundTogglePending = false;
+  const soundState = { underwater: 0, speed: 0, restored: 0 };
 
   let controller;
   let world;
@@ -61,10 +75,42 @@ function boot() {
     version: APP_VERSION,
     build: BUILD_ID,
     onStart: () => {
+      if (started) return;
       started = true;
+      if (!audio.muted) {
+        // start() is called synchronously in the start-button user gesture.
+        audio.start().then((ready) => {
+          if (!ready) audio.setMuted(true);
+          hud.setSoundEnabled(ready && !audio.muted);
+        });
+      }
       controller?.setEnabled(true);
       hud.setBuildStatus(`P0 · v${APP_VERSION}`, 'ready');
       hud.showToast("Bienvenue sur le Rivage d'Aelys", { tone: 'success' });
+    },
+    onSound: async () => {
+      if (soundTogglePending) return;
+      if (!audio.muted) {
+        audio.setMuted(true);
+        saveSoundPreference(false);
+        hud.setSoundEnabled(false);
+        return;
+      }
+      soundTogglePending = true;
+      try {
+        const ready = await audio.start();
+        if (ready) {
+          audio.setMuted(false);
+          saveSoundPreference(true);
+          hud.setSoundEnabled(true);
+        } else {
+          hud.showToast('Le son est indisponible. Vous pouvez continuer à explorer.', {
+            tone: 'warning',
+          });
+        }
+      } finally {
+        soundTogglePending = false;
+      }
     },
     onControl: (control, active, value) => {
       if (control === 'move') {
@@ -101,6 +147,7 @@ function boot() {
       careSystem.syncSeal(gameState.luma);
       const result = careSystem.interact(type, payload);
       gameState.updateLuma(careSystem.seal);
+      if (result.accepted) audio.playCue('care');
       carePanel.setSeal(gameState.luma);
       carePanel.setFeedback(result.feedback, { accepted: result.accepted });
       luma.userData.setMood?.(gameState.lumaMood.state);
@@ -172,6 +219,7 @@ function boot() {
     }
 
     if (result.type === 'echo') {
+      audio.playCue('echo');
       const names = {
         'echo-rivage': 'Le Rivage se souvient du premier passage.',
         'echo-lagune': 'La Lagune murmure une ancienne route.',
@@ -182,6 +230,7 @@ function boot() {
         duration: 3600,
       });
     } else if (result.type === 'site') {
+      audio.playCue('site');
       hud.showToast("Le Premier Echo s'eveille. Le Grand Courant repond.", {
         tone: 'success',
         duration: 5200,
@@ -260,6 +309,7 @@ function boot() {
     else setObjective(quest.currentStage?.title ?? 'Explorer Aqualys');
   }
 
+  hud.setSoundEnabled(!audio.muted);
   syncProgressUI({ syncWorld: true });
   luma.userData.setMood?.(gameState.lumaMood.state);
   hud.setBuildStatus(`P0 · v${APP_VERSION}`, 'warning');
@@ -281,6 +331,10 @@ function boot() {
     elapsed += delta;
     controller.update(delta);
     world.update(delta, elapsed);
+    // Reuse a small payload: no audio nodes or buffers are allocated per frame.
+    world.getAmbienceState(soundState);
+    soundState.speed = controller.state.normalizedSpeed;
+    audio.update(soundState, delta);
     updateContextPrompt(elapsed);
     world.render();
     animationFrame = requestAnimationFrame(frame);
@@ -296,18 +350,23 @@ function boot() {
     }
   };
   window.addEventListener('pagehide', persistNow);
-  document.addEventListener('visibilitychange', () => {
+  const persistWhenHidden = () => {
     if (document.visibilityState === 'hidden') persistNow();
-  });
+  };
+  document.addEventListener('visibilitychange', persistWhenHidden);
 
   return () => {
     cancelAnimationFrame(animationFrame);
+    window.clearTimeout(saveTimer);
     window.removeEventListener('pagehide', persistNow);
+    document.removeEventListener('visibilitychange', persistWhenHidden);
     questSystem.dispose();
     carePanel.destroy();
     hud.destroy();
     controller.dispose({ disposeInput: true });
+    audio.dispose();
     world.dispose();
+    canvas.remove();
   };
 }
 

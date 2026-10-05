@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createAelysWater } from './createAelysWater.js';
 import {
   ECHOES,
   INTERACTION,
@@ -88,58 +89,12 @@ function createTerrain(quality) {
 }
 
 function createWater(quality) {
-  const divisions = quality === 'low' ? 34 : 62;
-  const geometry = new THREE.PlaneGeometry(WORLD.size, WORLD.size, divisions, divisions);
-  geometry.rotateX(-Math.PI / 2);
-  const material = new THREE.ShaderMaterial({
-    transparent: true,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-    uniforms: {
-      uTime: { value: 0 },
-      uShallow: { value: new THREE.Color(0x61d4ce) },
-      uDeep: { value: new THREE.Color(0x176c85) },
-      uSun: { value: new THREE.Color(0xf8dfaf) },
-      uOpacity: { value: quality === 'low' ? 0.72 : 0.78 },
-    },
-    vertexShader: `
-      uniform float uTime;
-      varying vec3 vWorldPosition;
-      varying float vWave;
-      void main() {
-        vec3 transformed = position;
-        float broad = sin(position.x * .34 + uTime * .72) * .075;
-        float cross = cos(position.z * .43 - uTime * .56) * .052;
-        float detail = sin((position.x + position.z) * .77 + uTime) * .022;
-        transformed.y += broad + cross + detail;
-        vWave = broad + cross + detail;
-        vec4 world = modelMatrix * vec4(transformed, 1.0);
-        vWorldPosition = world.xyz;
-        gl_Position = projectionMatrix * viewMatrix * world;
-      }
-    `,
-    fragmentShader: `
-      uniform vec3 uShallow;
-      uniform vec3 uDeep;
-      uniform vec3 uSun;
-      uniform float uOpacity;
-      varying vec3 vWorldPosition;
-      varying float vWave;
-      void main() {
-        vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
-        float fresnel = pow(1.0 - abs(viewDirection.y), 2.2);
-        float shimmer = smoothstep(.045, .125, vWave) * .22;
-        vec3 colour = mix(uShallow, uDeep, .28 + fresnel * .62);
-        colour = mix(colour, uSun, shimmer + fresnel * .1);
-        gl_FragColor = vec4(colour, uOpacity * (.72 + fresnel * .25));
-      }
-    `,
+  return createAelysWater({
+    size: WORLD.size,
+    waterLevel: WORLD.waterLevel,
+    terrainHeight: getAelysTerrainHeight,
+    lowPower: quality === 'low',
   });
-  const water = new THREE.Mesh(geometry, material);
-  water.name = 'Aelys animated ocean';
-  water.position.y = WORLD.waterLevel;
-  water.renderOrder = 4;
-  return water;
 }
 
 function createSky() {
@@ -170,6 +125,8 @@ function createSky() {
         vec3 colour = mix(uHorizon, uTop, blend);
         float sunset = pow(max(0.0, 1.0 - abs(height) * 3.2), 5.0) * .22;
         gl_FragColor = vec4(mix(colour, uWarm, sunset), 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
       }
     `,
   });
@@ -520,7 +477,7 @@ export class AelysScene {
 
     const sunlight = new THREE.DirectionalLight(0xffe2b3, 2.45);
     sunlight.name = 'Aelys low sun';
-    sunlight.position.set(-12, 18, 9);
+    sunlight.position.set(-14, 10, -21.6);
     sunlight.castShadow = !this.lowPower;
     sunlight.shadow.mapSize.set(RENDER.shadowMapSize, RENDER.shadowMapSize);
     sunlight.shadow.camera.left = -14;
@@ -821,6 +778,13 @@ export class AelysScene {
     };
   }
 
+  /** Writes camera immersion and restoration into a reusable audio payload. */
+  getAmbienceState(target = {}) {
+    target.underwater = this._underwaterMix;
+    target.restored = this.ancientSite.userData.restoration;
+    return target;
+  }
+
   getSpawnPosition(target = new THREE.Vector3()) {
     const x = WORLD.spawn.x;
     const z = WORLD.spawn.z;
@@ -1037,6 +1001,7 @@ export class AelysScene {
       }
     });
     geometries.forEach((geometry) => geometry.dispose());
+    this.water.material.uniforms.uSeabed.value.dispose();
     materials.forEach(disposeMaterial);
     this.renderer.dispose();
     if (this._ownsCanvas) this.canvas.remove();

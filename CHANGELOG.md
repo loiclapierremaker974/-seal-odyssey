@@ -2,6 +2,27 @@
 
 Les changements notables de cette reprise locale sont consignés ici. Le format suit l'esprit de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et les versions applicatives suivent le versionnage sémantique quand il devient pertinent.
 
+## [0.2.0] - 2026-10-05
+
+### Ajouté
+
+- Ambiance Web Audio facultative : mer/brise, immersion, signaux d’Échos, restauration et soin ; activation par geste, contrôle du son et suspension lorsque l’onglet est masqué.
+- Vérification automatisée du navigateur : vrais shaders WebGL, démarrage, son et soin sur profils bureau et paysage tactile, avec captures et diagnostics.
+
+### Amélioré
+
+- Eau : normales des vagues, coloration selon la profondeur, reflets approximés du ciel et écume suivant le relief partagé avec le déplacement.
+- Alignement du soleil et de la lumière ; conversion colorimétrique des shaders d’eau et de ciel.
+- Pelage de Luma : mouillage rapide et séchage progressif.
+- Introduction centrée sur la traversée d’Aqualys et statut de publication actualisé.
+- Activation native des boutons au clavier, libération des touches après changement de focus et nettoyage complet de la session pendant le développement.
+
+### Limites documentées
+
+- Cette étape conserve les modèles procéduraux ; elle ne revendique pas la qualité des assets finaux.
+- Les PDF joints en octobre n’ont pas pu être ouverts dans cette session ; le canon publié sert de référence.
+- La validation WebGL logicielle ne remplace pas les essais sur iPhone réel.
+
 ## [0.1.0] - 2026-10-02
 
 ### Ajouté

@@ -121,8 +121,16 @@ export class InputController {
     this.onInputModeChange?.(mode);
   }
 
+  _isInterfaceTarget(event) {
+    const targets = event.composedPath?.() || [event.target];
+    return targets.some((target) => target !== this.canvas && target?.closest?.(
+      'button, input, select, textarea, a[href], [role="button"], [role="dialog"], [contenteditable=""], [contenteditable="true"]',
+    ));
+  }
+
   _bindBaseEvents() {
     this._listen(this.window, 'keydown', (event) => {
+      if (event.defaultPrevented || this._isInterfaceTarget(event)) return;
       const isMovement = MOVEMENT_KEYS.has(event.code);
       const button = KEY_TO_BUTTON[event.code];
       if (!isMovement && !button) return;
@@ -137,7 +145,7 @@ export class InputController {
       const isMovement = MOVEMENT_KEYS.has(event.code);
       const button = KEY_TO_BUTTON[event.code];
       if (!isMovement && !button) return;
-      if (this.preventDefault) event.preventDefault();
+      if (this.preventDefault && !this._isInterfaceTarget(event)) event.preventDefault();
       this._keys.delete(event.code);
       if (button) this._setButtonSource('keyboard', button, false);
       this._updateMoveState();

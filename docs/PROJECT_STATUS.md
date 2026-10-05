@@ -1,25 +1,45 @@
 # Project status
 
-Updated: 2026-10-02
+Updated: 2026-10-05
 
-## Verified locally
+## Existing foundation and publication
 
-The workspace initially contained one master PDF and five PNG concept/sprite references. It did not contain a Git repository, source code, `index.html`, a package manifest, a GLB/glTF model, the named Ultimate Beta archive, tests, or deployment configuration.
+The connected repository is `loiclapierremaker974/-seal-odyssey`.
+The original P0 foundation is commit `edc8b0added6fd4e2855b20e81d69d6cd6728d1e`.
+It contains land/water movement, diving, oxygen/energy, three Echoes, the Ancient Site, care/trust and a versioned local save.
 
-The two files `ChatGPT Installer.exe` and `Microsoft.Services.Store.winmd` are unrelated to the game and remain untouched.
+GitHub Actions run [37270058776](https://github.com/loiclapierremaker974/-seal-odyssey/actions/runs/37270058776), on 2026-10-05, completed tests, production build and Pages deployment successfully. The published foundation is [Seal Odyssey](https://loiclapierremaker974.github.io/-seal-odyssey/).
+The earlier note that Pages was waiting for administrative activation is obsolete.
 
-## Reported but not verifiable from supplied files
+## Current development: 0.2.0 sensory pass
 
-The dossier describes an advanced HTML/Web 3D beta with land/water movement, swimming, diving, oxygen, energy, touch camera, environmental effects, three Echoes, an Ancient Site, a mobile HUD, and a procedural Luma proxy. None of that implementation was present in the workspace, so it cannot be treated as verified functionality.
+This iteration extends the existing Web/Three.js foundation:
 
-The dossier names `loiclapierremaker974/seal-odyssey`, but the repository actually associated with the connected GitHub account is `loiclapierremaker974/-seal-odyssey` (with a leading hyphen). It was empty when inspected on 2026-10-02.
+- One-pass water with wave normals, sky approximation, depth tint, shoreline foam and correct tone mapping / color output.
+- Shoreline information sampled from the same deterministic terrain as locomotion.
+- Consistent visible sun and directional illumination.
+- Luma wetness and drying expressed through roughness/clearcoat.
+- Optional, generated Web Audio ambience and brief Echo, site and care cues.
+- Accessible sound control; local preference, gesture-only startup, tab visibility lifecycle and disposal.
+- CI domain tests, build and desktop/high plus touch/low WebGL startup checks; screenshots and diagnostics retained as run artifacts.
 
-## Current recovery decision
+Changes on a development branch are not automatically published to Pages. Only the existing main-branch deployment workflow publishes a release.
 
-A clean P0 foundation was created because there was no recoverable beta source. It is intentionally modular and data-driven so an older beta can later be compared or migrated without presenting this bootstrap as the missing original.
+## Reference access and scope
 
-The foundation passes 25 domain tests and a production Vite build. It was also exercised in a headless Chrome mobile landscape viewport: boot, WebGL scene, introduction, HUD and tactile care dialog loaded without console errors after the visual-QA correction.
+The October 1 master dossier and October 5 production transmission were attached again by the creator. Their download could not be opened in this session because no execution workspace is available.
+This iteration therefore uses the public `CANON_SNAPSHOT.md`, gameplay data and existing source as its references. It does not claim to implement new instructions from the unread October 5 transmission.
 
-Only source code, data, tests and project documentation are intended for the public repository. The confidential master PDF, local reference PNG files and unrelated machine files are explicitly excluded by `.gitignore`. GitHub Pages deployment is defined in `.github/workflows/deploy-pages.yml` and is gated by tests plus a production build.
+The P0 origin remains the same: the advanced beta archive and its original source were not supplied in the earlier recovery workspace. The current implementation is a clean foundation, not a restoration or proof of that reported beta.
 
-The first GitHub Actions runs confirmed that dependency installation, all 25 tests and the production build succeed on GitHub's runner. Deployment is waiting only for the repository's one-time Pages source selection (`Settings > Pages > GitHub Actions`); the connected GitHub integration does not expose that administrative endpoint. Until it is enabled, the workflow reports a warning and keeps the verified build job green instead of presenting the application code as failed.
+Private PDFs, concept PNGs and unrelated machine files are excluded from the public repository. They are not production assets.
+
+## Validation and remaining work
+
+`pnpm test` runs Node domain/lifecycle tests. `pnpm build` creates the Vite production output.
+The new browser workflow instruments real shader compilation, program linking and draw calls, then exercises introduction, sound and care in Chromium's software WebGL renderer.
+
+CI outcomes are available on each commit's checks. Software-renderer smoke tests establish startup and shader validity, not final artistic quality or phone performance.
+Real iPhone Safari/PWA checks, offline launch, update/resume and multi-generation performance measurements remain to be performed.
+
+Luma and the landscape remain procedural proxies. No production GLB, rig, morphs, PBR texture set, voice recording or final music is present. The complete canon and production transmission still need to be read before extending story, lineages or wider game systems.

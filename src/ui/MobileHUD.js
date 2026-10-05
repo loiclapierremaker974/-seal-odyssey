@@ -59,6 +59,7 @@ export class MobileHUD {
       onControl: null,
       onStart: null,
       onCare: null,
+      onSound: null,
       ...options,
     };
     this.abortController = new AbortController();
@@ -138,6 +139,8 @@ export class MobileHUD {
           <output><b data-echo-current>0</b>/<span data-echo-total>3</span></output>
         </section>
 
+        <div class="hud-tools">
+        <button type="button" class="sound-toggle" data-sound aria-pressed="false" aria-label="Activer le son">Son coupé</button>
         <button
           class="build-badge"
           type="button"
@@ -148,6 +151,7 @@ export class MobileHUD {
           <span class="build-badge__dot" aria-hidden="true"></span>
           <span>P0 · v${version}</span>
         </button>
+        </div>
       </header>
 
       <aside id="seal-debug-panel" class="debug-panel glass-panel" hidden>
@@ -210,13 +214,13 @@ export class MobileHUD {
       <section class="intro-screen" data-intro role="dialog" aria-modal="true" aria-labelledby="intro-title" aria-describedby="intro-description intro-source">
         <div class="intro-screen__veil" aria-hidden="true"></div>
         <div class="intro-card glass-panel">
-          <p class="intro-eyebrow">Fondation jouable · P0 locale</p>
+          <p class="intro-eyebrow">Aqualys · Onde Première</p>
           <h1 id="intro-title"><span>Seal</span> Odyssey</h1>
           <p id="intro-description" class="intro-lead">
-            Une première traversée procédurale d'Aqualys, conçue pour valider le mouvement, la nage et l'interface mobile.
+            Accompagnez Luma du Rivage d’Aelys à la Lagune des Murmures. Écoutez les trois Échos et réveillez le Site Ancien.
           </p>
           <p id="intro-source" class="source-warning">
-            <strong>État des sources :</strong> la bêta avancée et le dépôt historique mentionnés dans le dossier n'étaient pas présents dans cette transmission. Le phoque, le monde et les animations de cette build sont donc des substituts procéduraux temporaires, pas la bêta d'origine ni la qualité visuelle finale.
+            Prototype en cours de création : les personnages, les paysages et les sons évolueront au fil du développement.
           </p>
           <ul class="intro-features" aria-label="Contenu de cette fondation">
             <li><span aria-hidden="true">◌</span> Explorer en paysage</li>
@@ -226,7 +230,7 @@ export class MobileHUD {
           <button type="button" class="start-button" data-start>
             <span>Entrer dans Aqualys</span><span aria-hidden="true">→</span>
           </button>
-          <small>Casque conseillé · Activez le son · v${version}</small>
+          <small>Son optionnel · Casque conseillé · v${version}</small>
         </div>
       </section>
 
@@ -246,6 +250,7 @@ export class MobileHUD {
     return {
       intro: find('[data-intro]'),
       start: find('[data-start]'),
+      sound: find('[data-sound]'),
       objective: find('[data-objective]'),
       mode: find('[data-mode]'),
       oxygen: find('[data-vital="oxygen"]'),
@@ -458,15 +463,18 @@ export class MobileHUD {
     this.refs.start.addEventListener(
       'click',
       async () => {
-        await this.#requestImmersiveMode();
-        this.hideIntro();
+        // Start callbacks run inside the user gesture (Web Audio on iOS).
         this.options.onStart?.();
+        this.hideIntro();
+        await this.#requestImmersiveMode();
         this.element.dispatchEvent(
           new CustomEvent(HUD_EVENTS.START, { bubbles: true, composed: true }),
         );
       },
       { signal },
     );
+
+    this.refs.sound.addEventListener('click', () => this.options.onSound?.(), { signal });
 
     const toggleDebug = (open) => {
       const shouldOpen = open ?? this.refs.debugPanel.hidden;
@@ -607,6 +615,12 @@ export class MobileHUD {
     const text = this.refs.buildBadge.querySelector('span:last-child');
     text.textContent = String(label);
     this.refs.buildBadge.dataset.state = state;
+  }
+
+  setSoundEnabled(enabled) {
+    this.refs.sound.setAttribute('aria-pressed', String(Boolean(enabled)));
+    this.refs.sound.setAttribute('aria-label', enabled ? 'Couper le son' : 'Activer le son');
+    this.refs.sound.textContent = enabled ? 'Son actif' : 'Son coupé';
   }
 
   setControlEnabled(name, enabled) {

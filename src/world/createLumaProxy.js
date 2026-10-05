@@ -301,6 +301,7 @@ export function createLumaProxy({ scale = 0.62, shadows = true, highDetail = tru
     time: 0,
     mood: 'curious',
     blinkOffset: Math.random() * 4,
+    wetness: 0,
   };
   const leftFrontRest = leftFlipper.rotation.clone();
   const rightFrontRest = rightFlipper.rotation.clone();
@@ -317,6 +318,16 @@ export function createLumaProxy({ scale = 0.62, shadows = true, highDetail = tru
     const speed = Math.max(0, Number(state.speed) || 0);
     const motion = THREE.MathUtils.clamp(speed / 4.25, 0, 1.45);
     const swimming = mode === 'surface' || mode === 'underwater';
+    // Fast wetting and gentle drying are visual state, independent of saves.
+    const dt = Math.min(Math.max(Number(delta) || 0, 0), 0.1);
+    animation.wetness += ((swimming ? 1 : 0) - animation.wetness)
+      * (1 - Math.exp(-(swimming ? 3.2 : 0.075) * dt));
+    const wet = animation.wetness;
+    fur.roughness = 0.56 - wet * 0.29;
+    fur.clearcoat = 0.2 + wet * 0.66;
+    fur.clearcoatRoughness = 0.42 - wet * 0.24;
+    paleFur.roughness = 0.64 - wet * 0.29;
+    spotMaterial.roughness = 0.58 - wet * 0.27;
     const cadence = swimming ? 3.4 + motion * 3.6 : 1.4 + motion * 4.8;
     const wave = Math.sin(animation.time * cadence);
     const breath = Math.sin(animation.time * 1.75) * 0.012;
