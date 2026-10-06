@@ -164,8 +164,8 @@ async function runScenario(scenario) {
     const filename = scenario.name + '-' + phase + '.png';
     await page.screenshot({ path: join(artifactDirectory, filename), timeout: 15000 });
     result.screenshots.push(filename);
-    if (phase === 'exploration') {
-      await page.screenshot({ path: join(artifactDirectory, scenario.name + '-exploration.jpg'), type: 'jpeg', quality: 82, timeout: 15000 });
+    if (phase === 'exploration' || phase === 'failure') {
+      await page.screenshot({ path: join(artifactDirectory, scenario.name + '-' + phase + '.jpg'), type: 'jpeg', quality: 82, timeout: 15000 });
     }
   };
   try {
@@ -234,5 +234,5 @@ try {
   await writeFile(join(artifactDirectory, 'preview.log'), previewLog);
   await writeFile(join(artifactDirectory, 'report.json'), JSON.stringify(report, null, 2) + '\n');
 }
-console.log(JSON.stringify({ status: report.status, cases: report.cases.map(({ name, status }) => ({ name, status })), artifacts: artifactDirectory }));
+console.log(JSON.stringify({status:report.status,failures:report.failures,cases:report.cases.map(({name,status,failure,consoleErrors,pageErrors,failureRuntime})=>({name,status,failure,consoleErrors,pageErrors,failureRuntime})),artifacts:artifactDirectory}));
 if (report.failures.length) process.exitCode = 1;

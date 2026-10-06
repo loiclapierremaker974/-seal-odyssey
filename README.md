@@ -1,11 +1,11 @@
-# Seal Odyssey - fondation P0
+# Seal Odyssey — Aqualys et Luma
 
 Cette arborescence est une reprise locale propre de **Seal Odyssey** : une vertical slice Web/Three.js pensée d'abord pour l'iPhone en paysage, installable comme PWA.
 
 [![Test and deploy Seal Odyssey](https://github.com/loiclapierremaker974/-seal-odyssey/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/loiclapierremaker974/-seal-odyssey/actions/workflows/deploy-pages.yml)
 
 > [!IMPORTANT]
-> Le dossier maître décrit une bêta avancée et cite un ancien dépôt GitHub, mais ni les sources de cette bêta, ni son archive ZIP, ni un dépôt exploitable n'étaient présents dans la transmission du 2 octobre 2026. Cette fondation ne prétend donc pas être cette bêta. Le phoque, le décor et les animations actuellement produits par le code sont des **proxies procéduraux temporaires**.
+> Le dossier maître décrit une bêta avancée et cite un ancien dépôt GitHub, mais ni les sources de cette bêta, ni son archive ZIP, ni un dépôt exploitable n'étaient présents dans la transmission du 2 octobre 2026. Cette fondation ne prétend donc pas être cette bêta. La version 0.3.0 reconstruit Luma et les falaises d’Aelys à partir de la fiche visible du 6 octobre. Les modèles restent procéduraux et la qualité de l’illustration reste une cible artistique.
 
 Les dossiers de référence transmis par le créateur restent des sources de travail privées. Ils ne sont pas intégrés comme assets de production : leur provenance et leur usage final doivent d'abord être confirmés. Les exécutables sans rapport avec le jeu ont été laissés intacts.
 
@@ -71,7 +71,9 @@ src/
   seals/SealEntity.js          données et état d'un phoque
   care/CareSystem.js           interactions de soin et confiance
   audio/AqualysAudio.js        ambiance synthétisée, activation volontaire, pause
-  world/createLumaProxy.js     modèle temporaire, réponse au mouillage
+  world/createLumaProxy.js     peau continue, rig, pelage tacheté et mouillage
+  world/createAelysBackdrop.js falaises stratifiées, arches et cascades
+  world/coastalCollision.js    volumes côtiers solides et limites de la lagune
   world/createAelysWater.js    eau, normales, profondeur et écume littorale
   ui/MobileHUD.js              HUD, introduction, contrôles et notification PWA
   ui/CarePanel.js              gestes tactiles de soin, préférences et feedback
@@ -103,7 +105,7 @@ Le bouton **Activer le son** lance une ambiance générée dans le navigateur ap
 
 L’eau utilise une approximation du ciel, des normales animées et un champ de hauteur généré à partir du terrain d’Aelys. Ce rendu en une passe n’effectue pas de réflexion complète du décor ni de réfraction physique. Le pelage de Luma se mouille dans l’eau et sèche progressivement à terre, sans changer le schéma de sauvegarde.
 
-Le workflow `validate-prototype.yml` vérifie les tests de domaine, la build et le démarrage réel des shaders en Chromium/SwiftShader, pour les branches de travail et les pull requests. Les captures et diagnostics sont conservés dans les artifacts de chaque run. Ce contrôle logiciel ne mesure pas les performances d’un véritable iPhone.
+Le workflow `validate-prototype.yml` vérifie les tests de domaine, la build et le démarrage réel des shaders en Chromium/SwiftShader, pour les branches de travail et les pull requests. Les captures et diagnostics sont conservés dans les artifacts de chaque run. Les JPEG de revue et leur SHA/statut source sont également disponibles dans la branche `seal-render-previews` ; ce sont des images du navigateur réel, pas des illustrations générées. Ce contrôle logiciel ne mesure pas les performances d’un véritable iPhone.
 
 ## PWA et mises à jour
 
@@ -117,7 +119,7 @@ Le cache porte un numéro de version dans `public/service-worker.js`. Lorsqu'un 
 ## État et limites connues
 
 - Il s'agit d'une fondation P0 locale, pas d'une restauration de l'« Ultimate Beta » décrite par le dossier.
-- Luma et l'environnement sont des proxies procéduraux ; aucun modèle GLB, rig, morph facial, texture PBR finale ou animation de production n'a été fourni.
+- Luma possède un corps continu avec un petit rig, des cartes de pelage générées, un visage cohérent et des nageoires profilées. Les falaises et les ruines sont en 3D. La sculpture, la retopologie et les animations de production correspondant à la qualité de la fiche restent à réaliser.
 - Une ambiance sonore procédurale accompagne la mer, l’immersion, les Échos et le soin. Les enregistrements et la musique de production restent absents.
 - Le périmètre vise une boucle courte : locomotion, eau, jauges, trois Échos, Site Ancien, soin/confiance et sauvegarde. Le monde vivant complet, les lignées, la colonie, l'artisanat et la narration étendue restent hors P0.
 - Les performances doivent encore être mesurées sur plusieurs générations d'iPhone. Le navigateur peut refuser le verrouillage d'orientation ou le plein écran ; l'installation sur l'écran d'accueil reste la voie iOS recommandée.

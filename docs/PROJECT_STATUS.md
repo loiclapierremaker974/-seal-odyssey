@@ -1,45 +1,33 @@
 # Project status
 
-Updated: 2026-10-05
+Updated: 2026-10-06
 
-## Existing foundation and publication
+## Development and reference
 
-The connected repository is `loiclapierremaker974/-seal-odyssey`.
-The original P0 foundation is commit `edc8b0added6fd4e2855b20e81d69d6cd6728d1e`.
-It contains land/water movement, diving, oxygen/energy, three Echoes, the Ancient Site, care/trust and a versioned local save.
+Repository: `loiclapierremaker974/-seal-odyssey`.
+The creator supplied the visible Luma presentation sheet on October 6 and asked for the in-game anatomy and scenery to follow it. The image has been inspected; its physical 3D assets were not supplied.
 
-GitHub Actions run [37270058776](https://github.com/loiclapierremaker974/-seal-odyssey/actions/runs/37270058776), on 2026-10-05, completed tests, production build and Pages deployment successfully. The published foundation is [Seal Odyssey](https://loiclapierremaker974.github.io/-seal-odyssey/).
-The earlier note that Pages was waiting for administrative activation is obsolete.
+Version 0.3.0 replaces the primitive seal with a continuous skinned body, a short raised neck, rounded juvenile head, cream muzzle, mottled silver skin, glossy dark eyes, curved whiskers and flattened fore/hind flippers. A small bone rig blends land and swimming posture. Facial details follow the head together; eyes and reflections blink together. Skin roughness changes with immersion and drying.
 
-## Current development: 0.2.0 sensory pass
+Aelys now has a sandy shore, layered distant cliffs, masonry arches, ruined towers, moss and animated waterfalls. Geometry is built locally without downloaded third-party assets. Coastal collision volumes and lagoon bounds prevent crossing the solid cores and leaving the water surface. The follow camera starts closer to Luma.
 
-This iteration extends the existing Web/Three.js foundation:
+The 0.2.0 water, optional procedural audio, accessible controls, care, Echoes, quest and local-save behavior are retained.
 
-- One-pass water with wave normals, sky approximation, depth tint, shoreline foam and correct tone mapping / color output.
-- Shoreline information sampled from the same deterministic terrain as locomotion.
-- Consistent visible sun and directional illumination.
-- Luma wetness and drying expressed through roughness/clearcoat.
-- Optional, generated Web Audio ambience and brief Echo, site and care cues.
-- Accessible sound control; local preference, gesture-only startup, tab visibility lifecycle and disposal.
-- CI domain tests, build and desktop/high plus touch/low WebGL startup checks; screenshots and diagnostics retained as run artifacts.
+## Verification and real captures
 
-Changes on a development branch are not automatically published to Pages. Only the existing main-branch deployment workflow publishes a release.
+The working branch is `codex/aqualys-sensory-pass-2026-10-05`, pull request #1.
+On October 6 the validation runner executed the domain/model/collision tests and production build for commit `a205cc980f92ad5dc8ebfbbf51704566786454b8`; both succeeded.
+Browser validation checks actual Chromium/SwiftShader GLSL compilation, linking, draw calls, introduction, sound controls and care on desktop/high and touch/low profiles.
 
-## Reference access and scope
+JPEG captures are produced by that real browser session, alongside PNG screenshots and JSON diagnostics in Actions artifacts. The branch `seal-render-previews` holds only generated review captures and their source SHA/run/status metadata. No private reference image or user save is published there. A capture must be checked against its source SHA and validation status before being called a validated preview.
 
-The October 1 master dossier and October 5 production transmission were attached again by the creator. Their download could not be opened in this session because no execution workspace is available.
-This iteration therefore uses the public `CANON_SNAPSHOT.md`, gameplay data and existing source as its references. It does not claim to implement new instructions from the unread October 5 transmission.
+Only the main-branch Pages workflow publishes the game. Development checks and review captures alone do not change the live site.
+Live URL: https://loiclapierremaker974.github.io/-seal-odyssey/
 
-The P0 origin remains the same: the advanced beta archive and its original source were not supplied in the earlier recovery workspace. The current implementation is a clean foundation, not a restoration or proof of that reported beta.
+## Scope and remaining work
 
-Private PDFs, concept PNGs and unrelated machine files are excluded from the public repository. They are not production assets.
+This is a playable procedural foundation inspired by the sheet. It is not yet equivalent to its polished art rendering. The body uses a small custom rig rather than a finished production character, facial acting is limited, cliff collisions approximate their shapes, and water uses approximate sky reflection rather than scene reflection/refraction.
 
-## Validation and remaining work
+Real iPhone Safari/PWA performance, offline launch and update/resume still require device testing. Recorded music/audio, production sculpt/retopology/rigging, final PBR assets, the larger living world and extended narrative are still absent.
 
-`pnpm test` runs Node domain/lifecycle tests. `pnpm build` creates the Vite production output.
-The new browser workflow instruments real shader compilation, program linking and draw calls, then exercises introduction, sound and care in Chromium's software WebGL renderer.
-
-CI outcomes are available on each commit's checks. Software-renderer smoke tests establish startup and shader validity, not final artistic quality or phone performance.
-Real iPhone Safari/PWA checks, offline launch, update/resume and multi-generation performance measurements remain to be performed.
-
-Luma and the landscape remain procedural proxies. No production GLB, rig, morphs, PBR texture set, voice recording or final music is present. The complete canon and production transmission still need to be read before extending story, lineages or wider game systems.
+The October 1 and October 5 PDFs could not be opened through the current tool workspace. Published canon/game data remain the narrative source; unread document instructions are not treated as user requests. The earlier advanced-beta archive/source remains unavailable. The reference sheet and PDFs stay private rather than being copied into the public asset tree.

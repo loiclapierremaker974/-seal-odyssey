@@ -2,6 +2,27 @@
 
 Les changements notables de cette reprise locale sont consignés ici. Le format suit l'esprit de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et les versions applicatives suivent le versionnage sémantique quand il devient pertinent.
 
+## [0.3.0] - 2026-10-06
+
+### Ajouté
+
+- Corps continu de Luma, rig de tête et d’arrière-train, posture de plage et transition amortie vers la nage.
+- Cartes de pelage gris tacheté, ventre et museau crème, microrelief de poil et réponse au mouillage.
+- Yeux sombres réfléchissants, clignement cohérent, moustaches courbes et nageoires profilées.
+- Falaises stratifiées, arches maçonnées, tours ruinées, mousses et cascades en 3D.
+- Tests du modèle et des collisions côtières ; captures JPEG réelles avec métadonnées de build sur une branche de revue.
+
+### Amélioré
+
+- Rivage sableux, lumière chaude, environnement de réflexion et caméra rapprochée.
+- Animation de Luma pendant l’introduction et le soin.
+- Libération unique des cartes et squelettes du personnage lors de la fermeture.
+
+### Limites documentées
+
+- La fiche Luma visible le 6 octobre guide la construction ; la qualité de son illustration n’est pas encore atteinte.
+- Modèles, animation et son restent procéduraux ; validation logicielle à distinguer des mesures sur iPhone.
+
 ## [0.2.0] - 2026-10-05
 
 ### Ajouté

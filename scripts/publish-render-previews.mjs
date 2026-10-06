@@ -15,11 +15,17 @@ async function api(path,{method='GET',body,optional=false}={}){
 }
 const report=JSON.parse(await readFile('artifacts-smoke/report.json','utf8'));
 if(!['passed','failed'].includes(report.status))throw new Error('Capture report status is required');
-const files=[];
+const files=[{path:'report.json',content:JSON.stringify({...report,sourceSha,runId})+'\n'}];
 for(const [name,filename] of [['desktop','desktop-high-exploration.jpg'],['tactile','touch-landscape-low-exploration.jpg']]){
-  let image;try{image=await readFile('artifacts-smoke/'+filename);}catch(error){if(error.code==='ENOENT')continue;throw error;}
+  let image,phase='exploration';
+  try{image=await readFile('artifacts-smoke/'+filename);}
+  catch(error){
+    if(error.code!=='ENOENT')throw error;
+    try{image=await readFile('artifacts-smoke/'+filename.replace('-exploration.jpg','-failure.jpg'));phase='failure';}
+    catch(fallbackError){if(fallbackError.code==='ENOENT')continue;throw fallbackError;}
+  }
   if(image.length<3||image[0]!==0xff||image[1]!==0xd8)throw new Error('Invalid JPEG: '+filename);
-  const content=JSON.stringify({sourceSha,runId,status:report.status,imageBase64:image.toString('base64'),mimeType:'image/jpeg'})+'\n';
+  const content=JSON.stringify({sourceSha,runId,status:report.status,phase,imageBase64:image.toString('base64'),mimeType:'image/jpeg'})+'\n';
   if(Buffer.byteLength(content)>maxBytes)throw new Error('Capture exceeds 1 MB');
   files.push({path:name+'.json',content});
 }

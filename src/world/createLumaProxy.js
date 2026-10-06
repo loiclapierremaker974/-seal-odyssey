@@ -72,7 +72,17 @@ function createSkinGeometry(highDetail) {
   geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(skinIndices, 4));
   geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(weights, 4));
   geometry.setIndex(indices);
-  geometry.computeVertexNormals(); geometry.computeBoundingSphere();
+  
+  geometry.computeVertexNormals();
+  // Both UV sides share a surface normal, avoiding a line under the belly.
+  const normals=geometry.attributes.normal;
+  const normal=new THREE.Vector3();
+  for(let r=0;r<=rings;r++){
+    const a=r*stride,b=a+sections;
+    normal.set(normals.getX(a)+normals.getX(b),normals.getY(a)+normals.getY(b),normals.getZ(a)+normals.getZ(b)).normalize();
+    normals.setXYZ(a,normal.x,normal.y,normal.z);normals.setXYZ(b,normal.x,normal.y,normal.z);
+  }
+  geometry.computeBoundingSphere();
   return geometry;
 }
 

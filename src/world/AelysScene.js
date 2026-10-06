@@ -992,6 +992,7 @@ export class AelysScene {
     this.elapsed = Number.isFinite(elapsed) ? elapsed : this.elapsed + dt;
     this.water.material.uniforms.uTime.value = this.elapsed;
     this._updateMarineLife(dt);
+    this.backdrop.userData.update(this.elapsed);
     this._updateEchoes(dt);
     this._updateAncientSite(dt);
     this._updateAtmosphere(dt);
