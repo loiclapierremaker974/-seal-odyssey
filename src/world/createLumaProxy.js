@@ -300,8 +300,9 @@ export function createLumaProxy({scale=.62,shadows=true,highDetail=true}={}) {
   const flippers=[];
   for(const side of [-1,1])for(const hind of [false,true]){
     const pivot=new THREE.Group();pivot.name=hind?'Luma hind flipper joint':'Luma shoulder joint';
-    pivot.position.set(side*(hind?.15:.32),hind?.24:.24,hind?-1.52:.42);
-    visual.add(pivot);
+    // Hind flippers and peduncle move as one assembly during propulsion.
+    if(hind){pivot.position.set(side*.15,.24-.30,-1.52+1.15);tail.add(pivot);}
+    else{pivot.position.set(side*.32,.24,.42);visual.add(pivot);}
     const blade=addMesh(pivot,hind?'Luma webbed hind flipper':'Luma tapered fore flipper',flipperGeometry(highDetail,hind),fur,[0,0,0]);
     pivot.rotation.set(hind?-.06:.19,side*(hind?2.82:1.01),0);
     flippers.push({pivot,side,hind,rest:pivot.rotation.clone(),blade});

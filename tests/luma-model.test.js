@@ -13,6 +13,10 @@ for (const highDetail of [false,true]) test('Luma skin and rig remain valid thro
     assert.ok(Math.abs(sum-1)<1e-5);
     assert.ok(Number.isFinite(normals.getX(i)+normals.getY(i)+normals.getZ(i)));
   }
+  const rearJoints=[];
+  luma.traverse(o=>{if(o.name==='Luma hind flipper joint')rearJoints.push(o);});
+  assert.equal(rearJoints.length,2);
+  for(const joint of rearJoints)assert.equal(joint.parent,body.skeleton.bones.find(b=>b.name==='Luma rear propulsion'));
   const vertex=new THREE.Vector3();
   for(const mode of ['land','surface','underwater','land']){
     for(let frame=0;frame<60;frame++)luma.userData.update(1/60,{mode,speed:5});
