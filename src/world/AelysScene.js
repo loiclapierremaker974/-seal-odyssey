@@ -542,13 +542,14 @@ export class AelysScene {
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     this._reflectionTarget = pmrem.fromScene(reflectionScene, .025, .1, 150);
     this.scene.environment = this._reflectionTarget.texture;
+    this.scene.environmentIntensity = .55;
     pmrem.dispose();
     reflectionScene.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});
     this.backdrop = createAelysBackdrop({highDetail:!this.lowPower});
     this.scene.add(this.backdrop);
 
 
-    const hemisphere = new THREE.HemisphereLight(0xc8e5ed, 0x605543, .82);
+    const hemisphere = new THREE.HemisphereLight(0xf1e7d4, 0x605543, .82);
     hemisphere.name = 'Aelys sky fill';
     this.scene.add(hemisphere);
 

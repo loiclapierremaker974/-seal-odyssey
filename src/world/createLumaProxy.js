@@ -101,7 +101,7 @@ function makeSkinTextures(highDetail) {
     const cream = clamp(ventral * .94 + smooth(.85, .99, v) * .30);
     const grain = random() - .5;
     const cloud = Math.sin(u * Math.PI * 14 + Math.sin(v * 19)) * Math.sin(v * 37) * 6;
-    const silver = [137, 147, 153], pale = [229, 222, 207];
+    const silver = [143, 141, 137], pale = [229, 222, 207];
     for (let c = 0; c < 3; c++) albedo[i+c] = silver[c] * (1-cream) + pale[c]*cream + cloud + grain*11;
     albedo[i+3] = relief[i+3] = roughness[i+3] = 255;
     const hair = clamp(.5 + grain * .22 + Math.sin(x * .83 + y * .14) * .035);
@@ -245,7 +245,7 @@ export function createLumaProxy({scale=.62,shadows=true,highDetail=true}={}) {
   const flippers=[];
   for(const side of [-1,1])for(const hind of [false,true]){
     const pivot=new THREE.Group();pivot.name=hind?'Luma hind flipper joint':'Luma shoulder joint';
-    pivot.position.set(side*(hind?.15:.51),hind?.24:.24,hind?-1.52:.42);
+    pivot.position.set(side*(hind?.15:.32),hind?.24:.24,hind?-1.52:.42);
     visual.add(pivot);
     const blade=addMesh(pivot,hind?'Luma webbed hind flipper':'Luma tapered fore flipper',flipperGeometry(highDetail,hind),fur,[0,0,0]);
     pivot.rotation.set(hind?-.06:.19,side*(hind?2.82:1.01),0);
