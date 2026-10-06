@@ -998,6 +998,15 @@ export class AelysScene {
     this._updateAtmosphere(dt);
   }
 
+
+  /** Reuse the same WebGL canvas in the care surface, then return to the world. */
+  setContainer(container) {
+    this.container = container;
+    this._resizeObserver?.disconnect();
+    this._resizeObserver?.observe(container);
+    this.resize();
+  }
+
   render() {
     if (!this._disposed) this.renderer.render(this.scene, this.camera);
   }

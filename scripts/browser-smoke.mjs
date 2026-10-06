@@ -164,7 +164,7 @@ async function runScenario(scenario) {
     const filename = scenario.name + '-' + phase + '.png';
     await page.screenshot({ path: join(artifactDirectory, filename), timeout: 15000 });
     result.screenshots.push(filename);
-    if (phase === 'exploration' || phase === 'failure') {
+    if (['exploration', 'failure', 'care'].includes(phase)) {
       await page.screenshot({ path: join(artifactDirectory, scenario.name + '-' + phase + '.jpg'), type: 'jpeg', quality: 82, timeout: 15000 });
     }
   };
@@ -185,9 +185,24 @@ async function runScenario(scenario) {
     await screenshot('exploration');
     await page.getByRole('button', { name: 'Prendre soin de Luma', exact: true }).click();
     await page.getByRole('dialog', { name: 'Un moment avec Luma', exact: true }).waitFor({ state: 'visible' });
+
+    assert.equal(await page.locator('[data-care-surface] canvas').count(), 1, 'Care must display the live 3D canvas.');
+    await page.waitForFunction(() => {
+      const c=document.querySelector('[data-care-surface] canvas');
+      return c && c.width>100 && c.height>100 && c.inert===false;
+    });
+    await page.waitForTimeout(700); // Allow the portrait camera's eased transition.
     await screenshot('care');
+    await page.getByRole('button', {name:'Nourrir', exact:false}).click();
+    const surface=page.locator('[data-care-surface]');
+    const feedbackBefore=await page.locator('[data-care-feedback]').textContent();
+    await surface.focus();
+    await page.keyboard.press('Enter');
+    assert.notEqual(await page.locator('[data-care-feedback]').textContent(),feedbackBefore,'Care input must reach the care system.');
+
     await page.getByRole('button', { name: 'Fermer le soin', exact: true }).click();
     await page.getByRole('dialog', { name: 'Un moment avec Luma', exact: true }).waitFor({ state: 'hidden' });
+    assert.equal(await page.locator('#app > canvas').count(),1,'The live canvas must return to exploration.');
     result.afterInteractions = await captureRuntime(page);
     assertRuntime(result.afterInteractions, scenario);
     assert.deepEqual(result.pageErrors, [], 'Uncaught browser errors occurred.');

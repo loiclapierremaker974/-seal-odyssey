@@ -1500,3 +1500,21 @@ canvas {
   outline: 2px solid var(--sun);
   outline-offset: 3px;
 }
+
+/* The care surface shows the live character and world, using the same canvas. */
+.care-surface {
+  background: #092e3a;
+}
+.care-surface::before, .care-surface::after {
+  display: none;
+}
+.care-surface .game-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.care-trail, .care-progress {
+  z-index: 2;
+  pointer-events: none;
+}

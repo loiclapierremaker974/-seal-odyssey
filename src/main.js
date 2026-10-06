@@ -142,6 +142,10 @@ function boot() {
     mount: root,
     onClose: () => {
       hud.setCareMode(false);
+      root.prepend(canvas);
+      canvas.tabIndex = 0;
+      world?.setContainer(root);
+      controller?.setCameraFocus(null);
       controller?.setEnabled(started);
     },
     onInteraction: (type, payload) => {
@@ -162,8 +166,15 @@ function boot() {
 
   function openCare() {
     controller?.setEnabled(false);
+    controller?.setCameraFocus({});
     hud.setCareMode(true);
     carePanel.open(gameState.luma);
+    const surface = carePanel.getSceneMount();
+    surface.prepend(canvas);
+    canvas.inert = false;
+    canvas.removeAttribute('aria-hidden');
+    canvas.tabIndex = -1;
+    world.setContainer(surface);
   }
 
   world = new AelysScene({ canvas, container: root });

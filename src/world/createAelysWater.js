@@ -92,9 +92,9 @@ export function createAelysWater({
       #include <fog_pars_fragment>
       void main() {
         vec2 p = vWorldPosition.xz;
-        float common = cos((p.x + p.y) * .77 + uTime) * .01694;
-        float hx = cos(p.x * .34 + uTime * .72) * .0255 + common;
-        float hz = -sin(p.y * .43 - uTime * .56) * .02236 + common;
+        float crossSlope = cos((p.x + p.y) * .77 + uTime) * .01694;
+        float hx = cos(p.x * .34 + uTime * .72) * .0255 + crossSlope;
+        float hz = -sin(p.y * .43 - uTime * .56) * .02236 + crossSlope;
         // Small optical ripples add detail without increasing mesh density.
         hx += cos(p.x * 5.6 + p.y * 2.1 + uTime * 1.4) * .018;
         hz += cos(p.y * 6.2 - p.x * 1.7 - uTime * 1.2) * .016;

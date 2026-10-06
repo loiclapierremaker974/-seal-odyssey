@@ -15,7 +15,8 @@ Les changements notables de cette reprise locale sont consignés ici. Le format 
 ### Amélioré
 
 - Rivage sableux, lumière chaude, environnement de réflexion et caméra rapprochée.
-- Animation de Luma pendant l’introduction et le soin.
+- Animation de Luma pendant l’introduction et le soin ; écran de soin avec le vrai personnage 3D et une caméra rapprochée.
+- Correction d’un identifiant GLSL réservé qui empêchait le shader d’eau de compiler.
 - Libération unique des cartes et squelettes du personnage lors de la fermeture.
 
 ### Limites documentées

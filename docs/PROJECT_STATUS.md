@@ -9,7 +9,7 @@ The creator supplied the visible Luma presentation sheet on October 6 and asked 
 
 Version 0.3.0 replaces the primitive seal with a continuous skinned body, a short raised neck, rounded juvenile head, cream muzzle, mottled silver skin, glossy dark eyes, curved whiskers and flattened fore/hind flippers. A small bone rig blends land and swimming posture. Facial details follow the head together; eyes and reflections blink together. Skin roughness changes with immersion and drying.
 
-Aelys now has a sandy shore, layered distant cliffs, masonry arches, ruined towers, moss and animated waterfalls. Geometry is built locally without downloaded third-party assets. Coastal collision volumes and lagoon bounds prevent crossing the solid cores and leaving the water surface. The follow camera starts closer to Luma.
+Aelys now has a sandy shore, layered distant cliffs, masonry arches, ruined towers, moss and animated waterfalls. Geometry is built locally without downloaded third-party assets. Coastal collision volumes and lagoon bounds prevent crossing the solid cores and leaving the water surface. The follow camera starts closer to Luma. Care reuses the same live WebGL canvas and character in a closer portrait view; the old CSS seal is removed.
 
 The 0.2.0 water, optional procedural audio, accessible controls, care, Echoes, quest and local-save behavior are retained.
 
