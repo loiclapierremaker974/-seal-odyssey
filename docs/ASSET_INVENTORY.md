@@ -1,6 +1,8 @@
 # Asset inventory
 
-Updated: 2026-10-02
+Updated: 2026-10-05
+
+The reference table below records the earlier recovery workspace. These private source files are not included in the public GitHub tree.
 
 | File | Observed content | Runtime status |
 | --- | --- | --- |
@@ -14,3 +16,12 @@ Updated: 2026-10-02
 The PNGs are not a production 3D model, rig, texture set, or verified animation export. Their provenance and commercial rights have not been documented in the supplied workspace, so the bootstrap does not ship them as runtime assets.
 
 The project still needs a production Luma GLB pipeline covering sculpt/model, UVs, PBR textures, rig, morph targets, animation clips, optimization/LODs, licensing, and source-file archival.
+
+## Generated runtime material in 0.2.0
+
+- Ocean height field: a 256 × 256 unsigned-byte texture generated from the shared Aelys terrain, disposed with the scene.
+- Luma: existing primitive geometry; wet/dry material parameters, no new production model or texture.
+- Sound: generated noise and oscillator cues via Web Audio, enabled voluntarily. These are prototype ambience, not final recordings or music.
+- Browser captures and shader diagnostics: CI artifacts, excluded from source control.
+
+The October 1 and October 5 PDFs attached for this session have not been read because their download requires an execution workspace that is unavailable. No assets or new canon have been inferred from their filenames.

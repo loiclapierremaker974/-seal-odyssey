@@ -1,4 +1,7 @@
 import * as THREE from 'three';
+import { resolveCoastalMovement } from './coastalCollision.js';
+import { createAelysBackdrop } from './createAelysBackdrop.js';
+import { createAelysWater } from './createAelysWater.js';
 import {
   ECHOES,
   INTERACTION,
@@ -8,7 +11,7 @@ import {
 
 const SKY_COLOUR = new THREE.Color(0x8dd6d5);
 const DEEP_COLOUR = new THREE.Color(0x062f42);
-const FOG_SURFACE = new THREE.Color(0x80cac7);
+const FOG_SURFACE = new THREE.Color(0x8ab3c0);
 const FOG_DEEP = new THREE.Color(0x07364a);
 
 function smoothstep(minimum, maximum, value) {
@@ -53,11 +56,69 @@ export function getAelysTerrainHeight(x, z) {
 }
 
 function terrainColour(height) {
-  if (height > 0.82) return new THREE.Color(0x587862);
-  if (height > 0.08) return new THREE.Color(0xbca678);
+  if (height > 0.82) return new THREE.Color(0xcbb992);
+  if (height > 0.08) return new THREE.Color(0xd2bd92);
   if (height > -1.35) return new THREE.Color(0x698c82);
   if (height > -3.2) return new THREE.Color(0x426e6e);
   return new THREE.Color(0x294f5c);
+}
+
+
+function createSandRelief() {
+  const size=128,data=new Uint8Array(size*size*4);
+  const random=seededRandom(7201);
+  for(let i=0;i<size*size;i++){
+    const grain=110+Math.floor(random()*65);
+    data[i*4]=data[i*4+1]=data[i*4+2]=grain;data[i*4+3]=255;
+  }
+  const map=new THREE.DataTexture(data,size,size);
+  map.wrapS=map.wrapT=THREE.RepeatWrapping;map.repeat.set(24,24);
+  map.magFilter=THREE.LinearFilter;map.minFilter=THREE.LinearMipmapLinearFilter;
+  map.generateMipmaps=true;map.needsUpdate=true;return map;
+}
+
+function createCoastalGrass() {
+  const p=[],colours=[],indices=[];
+  const base=new THREE.Color(0x3d604b),tip=new THREE.Color(0x86966a);
+  for(let blade=0;blade<7;blade++){
+    const a=blade*2.399,height=.22+(blade%4)*.055,offset=p.length/3;
+    for(let row=0;row<=4;row++){
+      const t=row/4,lean=t*t*.18,halfWidth=.033*Math.sin(Math.PI*t*.85)+.005;
+      const c=base.clone().lerp(tip,t);
+      for(const side of [-1,0,1]){
+        const width=side*halfWidth;
+        p.push(Math.cos(a)*lean-Math.sin(a)*width,height*t-(side===0?0:.006),Math.sin(a)*lean+Math.cos(a)*width);
+        colours.push(c.r,c.g,c.b);
+      }
+    }
+    for(let row=0;row<4;row++)for(let half=0;half<2;half++){
+      const i=offset+row*3+half,j=i+3;indices.push(i,j,i+1,j,j+1,i+1);
+    }
+  }
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));
+  g.setAttribute('color',new THREE.Float32BufferAttribute(colours,3));g.setIndex(indices);g.computeVertexNormals();return g;
+}
+
+function createClouds() {
+  const width=256,height=128,data=new Uint8Array(width*height*4);
+  for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+    const u=x/width,v=y/height,i=(y*width+x)*4;
+    let density=0;
+    for(const [cx,cy,rx,ry] of [[.24,.5,.18,.25],[.44,.51,.22,.31],[.65,.46,.18,.23],[.79,.48,.12,.17],[.53,.65,.14,.17]]){
+      density+=Math.exp(-2.3*(((u-cx)/rx)**2+((v-cy)/ry)**2));
+    }
+    const wisps=1+Math.sin(u*48+Math.sin(v*29))*Math.sin(v*42)*.17;
+    const alpha=smoothstep(.11,.8,density*wisps)*.78;
+    data[i]=246;data[i+1]=205+Math.floor(v*29);data[i+2]=187+Math.floor(v*43);data[i+3]=Math.round(alpha*255);
+  }
+  const map=new THREE.DataTexture(data,width,height);map.colorSpace=THREE.SRGBColorSpace;
+  map.magFilter=THREE.LinearFilter;map.minFilter=THREE.LinearFilter;map.needsUpdate=true;
+  const material=new THREE.MeshBasicMaterial({map,transparent:true,depthWrite:false,fog:false});
+  const geometry=new THREE.PlaneGeometry(1,1),group=new THREE.Group();
+  for(const [x,y,z,w,h,angle] of [[-24,23,-49,28,10,.12],[16,27,-55,32,11,-.1],[34,19,-39,20,8,-.4]]){
+    const cloud=new THREE.Mesh(geometry,material);cloud.position.set(x,y,z);cloud.scale.set(w,h,1);cloud.rotation.y=angle;group.add(cloud);
+  }
+  group.name='Nuages lumineux d’Aelys';return group;
 }
 
 function createTerrain(quality) {
@@ -78,8 +139,10 @@ function createTerrain(quality) {
   geometry.computeVertexNormals();
   const material = new THREE.MeshStandardMaterial({
     vertexColors: true,
-    roughness: 0.9,
-    metalness: 0.03,
+    roughness: 0.94,
+    metalness: 0,
+    bumpMap: createSandRelief(),
+    bumpScale: .045,
   });
   const terrain = new THREE.Mesh(geometry, material);
   terrain.name = 'Aelys terrain and seabed';
@@ -88,58 +151,12 @@ function createTerrain(quality) {
 }
 
 function createWater(quality) {
-  const divisions = quality === 'low' ? 34 : 62;
-  const geometry = new THREE.PlaneGeometry(WORLD.size, WORLD.size, divisions, divisions);
-  geometry.rotateX(-Math.PI / 2);
-  const material = new THREE.ShaderMaterial({
-    transparent: true,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-    uniforms: {
-      uTime: { value: 0 },
-      uShallow: { value: new THREE.Color(0x61d4ce) },
-      uDeep: { value: new THREE.Color(0x176c85) },
-      uSun: { value: new THREE.Color(0xf8dfaf) },
-      uOpacity: { value: quality === 'low' ? 0.72 : 0.78 },
-    },
-    vertexShader: `
-      uniform float uTime;
-      varying vec3 vWorldPosition;
-      varying float vWave;
-      void main() {
-        vec3 transformed = position;
-        float broad = sin(position.x * .34 + uTime * .72) * .075;
-        float cross = cos(position.z * .43 - uTime * .56) * .052;
-        float detail = sin((position.x + position.z) * .77 + uTime) * .022;
-        transformed.y += broad + cross + detail;
-        vWave = broad + cross + detail;
-        vec4 world = modelMatrix * vec4(transformed, 1.0);
-        vWorldPosition = world.xyz;
-        gl_Position = projectionMatrix * viewMatrix * world;
-      }
-    `,
-    fragmentShader: `
-      uniform vec3 uShallow;
-      uniform vec3 uDeep;
-      uniform vec3 uSun;
-      uniform float uOpacity;
-      varying vec3 vWorldPosition;
-      varying float vWave;
-      void main() {
-        vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
-        float fresnel = pow(1.0 - abs(viewDirection.y), 2.2);
-        float shimmer = smoothstep(.045, .125, vWave) * .22;
-        vec3 colour = mix(uShallow, uDeep, .28 + fresnel * .62);
-        colour = mix(colour, uSun, shimmer + fresnel * .1);
-        gl_FragColor = vec4(colour, uOpacity * (.72 + fresnel * .25));
-      }
-    `,
+  return createAelysWater({
+    size: WORLD.size,
+    waterLevel: WORLD.waterLevel,
+    terrainHeight: getAelysTerrainHeight,
+    lowPower: quality === 'low',
   });
-  const water = new THREE.Mesh(geometry, material);
-  water.name = 'Aelys animated ocean';
-  water.position.y = WORLD.waterLevel;
-  water.renderOrder = 4;
-  return water;
 }
 
 function createSky() {
@@ -148,8 +165,8 @@ function createSky() {
     side: THREE.BackSide,
     depthWrite: false,
     uniforms: {
-      uTop: { value: new THREE.Color(0x3e8798) },
-      uHorizon: { value: new THREE.Color(0xc0e5dc) },
+      uTop: { value: new THREE.Color(0x548caf) },
+      uHorizon: { value: new THREE.Color(0x87bed3) },
       uWarm: { value: new THREE.Color(0xf3c28f) },
     },
     vertexShader: `
@@ -170,6 +187,8 @@ function createSky() {
         vec3 colour = mix(uHorizon, uTop, blend);
         float sunset = pow(max(0.0, 1.0 - abs(height) * 3.2), 5.0) * .22;
         gl_FragColor = vec4(mix(colour, uWarm, sunset), 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
       }
     `,
   });
@@ -483,14 +502,14 @@ export class AelysScene {
       this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     }
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.05;
+    this.renderer.toneMappingExposure = .92;
     this.renderer.shadowMap.enabled = !this.lowPower;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     this.scene = new THREE.Scene();
     this.scene.name = 'Aelys - Onde Premiere vertical slice';
     this.scene.background = SKY_COLOUR.clone();
-    this.scene.fog = new THREE.FogExp2(FOG_SURFACE.clone(), 0.017);
+    this.scene.fog = new THREE.FogExp2(FOG_SURFACE.clone(), 0.009);
     this.camera = new THREE.PerspectiveCamera(
       RENDER.fieldOfView,
       1,
@@ -512,15 +531,31 @@ export class AelysScene {
 
   _buildWorld() {
     this.sky = createSky();
+    
     this.scene.add(this.sky);
+    const reflectionScene = new THREE.Scene();
+    const reflectionSky = createSky();
+    reflectionScene.add(reflectionSky);
+    const reflectedSun = new THREE.Mesh(new THREE.SphereGeometry(3.8, 12, 8),
+      new THREE.MeshBasicMaterial({color:0xffe8be}));
+    reflectedSun.position.set(-35,25,-54);reflectionScene.add(reflectedSun);
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this._reflectionTarget = pmrem.fromScene(reflectionScene, .025, .1, 150);
+    this.scene.environment = this._reflectionTarget.texture;
+    this.scene.environmentIntensity = .55;
+    pmrem.dispose();
+    reflectionScene.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});
+    this.backdrop = createAelysBackdrop({highDetail:!this.lowPower});
+    this.scene.add(this.backdrop);
 
-    const hemisphere = new THREE.HemisphereLight(0xb9eee9, 0x193e45, 2.0);
+
+    const hemisphere = new THREE.HemisphereLight(0xf1e7d4, 0x605543, .82);
     hemisphere.name = 'Aelys sky fill';
     this.scene.add(hemisphere);
 
     const sunlight = new THREE.DirectionalLight(0xffe2b3, 2.45);
     sunlight.name = 'Aelys low sun';
-    sunlight.position.set(-12, 18, 9);
+    sunlight.position.set(-14, 10, -21.6);
     sunlight.castShadow = !this.lowPower;
     sunlight.shadow.mapSize.set(RENDER.shadowMapSize, RENDER.shadowMapSize);
     sunlight.shadow.camera.left = -14;
@@ -539,6 +574,9 @@ export class AelysScene {
     sun.name = 'Aelys sun';
     sun.position.set(-35, 25, -54);
     this.scene.add(sun);
+    this.scene.add(createClouds());
+    const portraitFill=new THREE.DirectionalLight(0xffebce,.72);
+    portraitFill.position.set(-6,7,10);this.scene.add(portraitFill);
 
     this.terrain = createTerrain(this.quality);
     this.scene.add(this.terrain);
@@ -562,11 +600,20 @@ export class AelysScene {
   _createRocksAndPlants() {
     const random = seededRandom(1087);
     const rockMaterial = new THREE.MeshStandardMaterial({
-      color: 0x556d68,
-      roughness: 0.92,
-      metalness: 0.03,
+      color: 0x817d70,
+      roughness: 0.94,
+      metalness: 0,
+      bumpMap: this.terrain.material.bumpMap,
+      bumpScale: .022,
     });
-    const rockGeometry = new THREE.DodecahedronGeometry(1, 0);
+    const rockGeometry = new THREE.IcosahedronGeometry(1, this.lowPower ? 1 : 2);
+    const rockPositions=rockGeometry.attributes.position;
+    for(let i=0;i<rockPositions.count;i++){
+      const x=rockPositions.getX(i),y=rockPositions.getY(i),z=rockPositions.getZ(i);
+      const grain=1+Math.sin(x*8.1+z*4.7)*.065+Math.cos(y*9.3-x*3.2)*.035;
+      rockPositions.setXYZ(i,x*grain,y*grain*.72,z*grain);
+    }
+    rockGeometry.computeVertexNormals();
     const rockCount = this.lowPower ? 17 : 29;
     const rockMesh = new THREE.InstancedMesh(rockGeometry, rockMaterial, rockCount);
     rockMesh.name = 'Aelys shoreline rocks';
@@ -632,13 +679,14 @@ export class AelysScene {
     }
 
     const shrubMaterial = new THREE.MeshStandardMaterial({
-      color: 0x6d9270,
-      roughness: 0.88,
+      vertexColors: true,
+      roughness: .93,
+      side: THREE.DoubleSide,
     });
-    const shrubGeometry = new THREE.ConeGeometry(0.22, 0.74, 5);
+    const shrubGeometry = createCoastalGrass();
     const shrubCount = this.lowPower ? 16 : 30;
     const shrubs = new THREE.InstancedMesh(shrubGeometry, shrubMaterial, shrubCount);
-    shrubs.name = 'Rivage d Aelys vegetation';
+    shrubs.name = 'Herbes souples du rivage';
     let written = 0;
     while (written < shrubCount) {
       const angle = random() * Math.PI * 2;
@@ -646,8 +694,8 @@ export class AelysScene {
       const x = Math.cos(angle) * radius;
       const z = WORLD.islandCenter.z + Math.sin(angle) * radius;
       const y = getAelysTerrainHeight(x, z);
-      if (y < 0.25) continue;
-      transform.position.set(x, y + 0.3, z);
+      if (y < 0.25 || Math.hypot(x-WORLD.spawn.x,z-WORLD.spawn.z)<1.7) continue;
+      transform.position.set(x, y + 0.025, z);
       transform.rotation.set(0, random() * Math.PI, (random() - 0.5) * 0.2);
       const size = 0.62 + random() * 0.9;
       transform.scale.set(size, size, size);
@@ -786,8 +834,8 @@ export class AelysScene {
     this._underwaterMix += (depth - this._underwaterMix) * (1 - Math.exp(-4 * delta));
     this.scene.background.copy(SKY_COLOUR).lerp(DEEP_COLOUR, this._underwaterMix);
     this.scene.fog.color.copy(FOG_SURFACE).lerp(FOG_DEEP, this._underwaterMix);
-    this.scene.fog.density = THREE.MathUtils.lerp(0.017, 0.078, this._underwaterMix);
-    this.renderer.toneMappingExposure = THREE.MathUtils.lerp(1.05, 0.84, this._underwaterMix);
+    this.scene.fog.density = THREE.MathUtils.lerp(0.009, 0.078, this._underwaterMix);
+    this.renderer.toneMappingExposure = THREE.MathUtils.lerp(.92, .80, this._underwaterMix);
     this.sky.visible = this._underwaterMix < 0.82;
   }
 
@@ -819,6 +867,13 @@ export class AelysScene {
           ? 'lagune-murmures'
           : 'large-aelys',
     };
+  }
+
+  /** Writes camera immersion and restoration into a reusable audio payload. */
+  getAmbienceState(target = {}) {
+    target.underwater = this._underwaterMix;
+    target.restored = this.ancientSite.userData.restoration;
+    return target;
   }
 
   getSpawnPosition(target = new THREE.Vector3()) {
@@ -1011,13 +1066,29 @@ export class AelysScene {
     this.elapsed = Number.isFinite(elapsed) ? elapsed : this.elapsed + dt;
     this.water.material.uniforms.uTime.value = this.elapsed;
     this._updateMarineLife(dt);
+    this.backdrop.userData.update(this.elapsed);
     this._updateEchoes(dt);
     this._updateAncientSite(dt);
     this._updateAtmosphere(dt);
   }
 
+
+  /** Reuse the same WebGL canvas in the care surface, then return to the world. */
+  setContainer(container) {
+    this.container = container;
+    this._resizeObserver?.disconnect();
+    this._resizeObserver?.observe(container);
+    this.resize();
+  }
+
   render() {
     if (!this._disposed) this.renderer.render(this.scene, this.camera);
+  }
+
+
+  /** Resolve solid distant coastline before the camera and animation update. */
+  resolveMovement(position, previous, radius = .4) {
+    return resolveCoastalMovement(position, previous, radius, this.backdrop.userData.blockers || []);
   }
 
   dispose() {
@@ -1037,7 +1108,19 @@ export class AelysScene {
       }
     });
     geometries.forEach((geometry) => geometry.dispose());
-    materials.forEach(disposeMaterial);
+    this.water.material.uniforms.uSeabed.value.dispose();
+    
+    const textures = new Set();
+    materials.forEach(material => {
+      for (const value of Object.values(material)) if (value?.isTexture) textures.add(value);
+      material.dispose();
+    });
+    textures.forEach(texture=>texture.dispose());
+    const skeletons = new Set();
+    this.scene.traverse(o=>{if(o.skeleton)skeletons.add(o.skeleton);});
+    skeletons.forEach(s=>s.dispose());
+    this._reflectionTarget?.dispose();
+
     this.renderer.dispose();
     if (this._ownsCanvas) this.canvas.remove();
   }

@@ -57,8 +57,10 @@ export class GuardianController {
     this.enabled = true;
 
     this.velocity = new THREE.Vector3();
+    this._previousPosition = object.position.clone();
     this.yaw = CAMERA.initialYaw;
     this.pitch = CAMERA.initialPitch;
+    this._cameraFocus = null;
     this._cameraLookTarget = object.position.clone();
     this._lastVitals = { energy: -1, oxygen: -1 };
     this._energyRecoveryClock = VITALS.energyRecoveryDelay;
@@ -278,6 +280,7 @@ export class GuardianController {
   }
 
   _cameraParameters() {
+    if (this._cameraFocus) return this._cameraFocus;
     if (this.state.mode === 'underwater') {
       return {
         distance: CAMERA.distanceUnderwater,
@@ -299,11 +302,13 @@ export class GuardianController {
   _cameraDestination() {
     const { distance, targetHeight } = this._cameraParameters();
     const target = this.object.position.clone().addScaledVector(UP, targetHeight);
-    const horizontalDistance = Math.cos(this.pitch) * distance;
+    const yaw = this._cameraFocus?.yaw ?? this.yaw;
+    const pitch = this._cameraFocus?.pitch ?? this.pitch;
+    const horizontalDistance = Math.cos(pitch) * distance;
     const desired = target.clone().add(new THREE.Vector3(
-      Math.sin(this.yaw) * horizontalDistance,
-      Math.sin(this.pitch) * distance,
-      Math.cos(this.yaw) * horizontalDistance,
+      Math.sin(yaw) * horizontalDistance,
+      Math.sin(pitch) * distance,
+      Math.cos(yaw) * horizontalDistance,
     ));
     const cameraSample = this._sampleEnvironment(desired);
     desired.y = Math.max(
@@ -380,10 +385,12 @@ export class GuardianController {
     this._applyLook(dt, inputState);
 
     if (!this.enabled || dt === 0) {
+      this.object.userData.update?.(dt, { ...this.state, speed: 0, moving: false });
       this._updateCamera(Math.max(dt, 1 / 120));
       return this.getState();
     }
 
+    this._previousPosition.copy(this.object.position);
     let sample = this._sampleEnvironment(this.object.position);
     this.state.mode = this._resolveMode(sample, this.state.mode);
     if (this.input.consumePressed?.('dive')) {
@@ -422,6 +429,11 @@ export class GuardianController {
       sample = this._updateUnderwater(dt, desiredDirection, speed, sample, effectiveInput);
     }
 
+    if (this.environment?.resolveMovement?.(this.object.position, this._previousPosition, this.object.userData.collisionRadius || .4)) {
+      this.velocity.x = 0;
+      this.velocity.z = 0;
+      sample = this._sampleEnvironment(this.object.position);
+    }
     this.state.mode = this._resolveMode(sample, this.state.mode);
     this.state.speed = this.velocity.length();
     this.state.normalizedSpeed = THREE.MathUtils.clamp(
@@ -455,6 +467,12 @@ export class GuardianController {
     if (snapToEnvironment) this._snapToValidHeight(sample);
     if (snapCamera) this._snapCamera();
     this._emitState(true);
+  }
+
+
+  /** A gentle portrait view during care; normal exploration settings persist. */
+  setCameraFocus(focus = null) {
+    this._cameraFocus = focus ? { distance: 3.2, targetHeight: .86, pitch: .12, yaw: this.object.rotation.y + .28, ...focus } : null;
   }
 
   setEnabled(enabled) {

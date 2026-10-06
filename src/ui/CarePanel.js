@@ -63,15 +63,6 @@ export class CarePanel {
             tabindex="0"
             aria-label="Zone tactile de soin de Luma"
           >
-            <div class="care-water" aria-hidden="true"></div>
-            <div class="care-luma" aria-hidden="true">
-              <span class="care-luma__body"></span>
-              <span class="care-luma__head"><i></i><i></i></span>
-              <span class="care-luma__flipper care-luma__flipper--left"></span>
-              <span class="care-luma__flipper care-luma__flipper--right"></span>
-              <span class="care-luma__tail"></span>
-              <span class="care-luma__belly"></span>
-            </div>
             <div class="care-trail" data-care-trail aria-hidden="true"></div>
             <div class="care-progress" aria-hidden="true"><i data-care-progress></i></div>
           </div>
@@ -301,6 +292,9 @@ export class CarePanel {
         : 'Observez sa posture avant de commencer.';
   }
 
+  /** Mount for the existing live 3D canvas; the panel owns no renderer. */
+  getSceneMount() { return this.refs.surface; }
+
   setSeal(seal) {
     const trust = seal?.relationships?.guardianTrust ?? 0;
     const mood = seal?.mood?.state ?? 'neutre';
@@ -349,6 +343,7 @@ export class CarePanel {
   }
 
   destroy() {
+    this.close();
     this.abortController.abort();
     this.element.remove();
   }
