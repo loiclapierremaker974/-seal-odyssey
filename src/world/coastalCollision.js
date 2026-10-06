@@ -6,6 +6,8 @@ function resolvePolygon(position,radius,outline){
     const ax=outline[j*2],az=outline[j*2+1],bx=outline[i*2],bz=outline[i*2+1];
     if((az>position.z)!==(bz>position.z)&&position.x<(bx-ax)*(position.z-az)/(bz-az)+ax)inside=!inside;
     const ex=bx-ax,ez=bz-az,lenSq=ex*ex+ez*ez;
+    // Closed contours repeat their first vertex; such an edge has no normal.
+    if(lenSq<1e-12)continue;
     const t=Math.max(0,Math.min(1,((position.x-ax)*ex+(position.z-az)*ez)/(lenSq||1)));
     const x=ax+t*ex,z=az+t*ez,d=(position.x-x)**2+(position.z-z)**2;
     if(d<best){best=d;qx=x;qz=z;const len=Math.sqrt(lenSq)||1;nx=ez/len;nz=-ex/len;}

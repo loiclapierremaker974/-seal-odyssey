@@ -45,8 +45,9 @@ test('sculpted coastal contours remain closed and follow the rendered rock trian
         assert.ok(p.length>=8&&p.every(Number.isFinite));
         assert.ok(Math.hypot(p[0]-p.at(-2),p[1]-p.at(-1))<1e-5,'The outline must be closed.');
         const point={x:p[0],y,z:p[1]};
-        resolveCoastalMovement(point,{x:blocker.x,y,z:blocker.z},.1,[blocker]);
+        assert.equal(resolveCoastalMovement(point,{x:blocker.x,y,z:blocker.z},.1,[blocker]),true);
         assert.ok(Number.isFinite(point.x+point.z));
+        assert.ok(Math.hypot(point.x-p[0],point.z-p[1])>=.099,'The first contour vertex must separate from the rock.');
       }
     }
     const blocker=backdrop.userData.blockers[1],outline=blocker.outlineAtHeight(1.7);
@@ -61,4 +62,13 @@ test('sculpted coastal contours remain closed and follow the rendered rock trian
     backdrop.traverse(o=>{if(o.geometry)geometries.add(o.geometry);if(o.material){materials.add(o.material);for(const v of Object.values(o.material))if(v?.isTexture)textures.add(v);}});
     geometries.forEach(g=>g.dispose());textures.forEach(t=>t.dispose());materials.forEach(m=>m.dispose());
   }
+});
+
+test('the repeated closing vertex has a valid separating normal',()=>{
+  const outline=[20,-23,28,-23,28,-17,20,-17,20,-23];
+  const blocker={x:24,z:-20,top:10,bottom:-5,broadRadius:10,outlineAtHeight:()=>outline};
+  const p={x:20,y:0,z:-23};
+  assert.equal(resolveCoastalMovement(p,{...p},.4,[blocker]),true);
+  assert.ok(Math.hypot(p.x-20,p.z+23)>.4);
+  assert.equal(p.y,0);
 });

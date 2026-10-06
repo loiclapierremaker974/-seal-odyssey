@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { toCreasedNormals } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const UP=new THREE.Vector3(0,1,0), ONE=new THREE.Vector3(1,1,1);
 const STONE=new THREE.Color('#c5bfaf'), ROCK=new THREE.Color('#adaca0'), MOSS=new THREE.Color('#4e6242');
@@ -36,7 +37,7 @@ function finish(target){
 }
 
 function limestoneSurface(highDetail){
-  const size=highDetail?256:128,data=new Uint8Array(size*size*4);
+  const size=highDetail?512:256,data=new Uint8Array(size*size*4),colourData=new Uint8Array(size*size*4);
   const smooth=t=>t*t*(3-2*t),wrap=(n,p)=>((n%p)+p)%p;
   const noise=(u,v,cells)=>{
     const x=u*cells,y=v*cells,ix=Math.floor(x),iy=Math.floor(y),fx=smooth(x-ix),fy=smooth(y-iy);
@@ -49,17 +50,28 @@ function limestoneSurface(highDetail){
     const layer=Math.pow(Math.max(0,Math.sin(v*Math.PI*26+noise(u,v,4)*1.7)),8),i=(y*size+x)*4;
     data[i]=Math.round((.52+(coarse-.5)*.2+(medium-.5)*.13+(grain-.5)*.07-crack*.12-layer*.06)*255);
     data[i+1]=Math.round((.82+grain*.12-layer*.035)*255);data[i+2]=data[i];data[i+3]=255;
+    const brightness=218+(coarse-.5)*38+(medium-.5)*22+(grain-.5)*12-crack*32-layer*12;
+    const iron=Math.max(0,noise(u+.21,v,6)-.55)*12;
+    colourData[i]=Math.round(brightness+iron);colourData[i+1]=Math.round(brightness-iron*.4);
+    colourData[i+2]=Math.round(brightness-iron*1.6);colourData[i+3]=255;
   }
   const map=new THREE.DataTexture(data,size,size);map.colorSpace=THREE.NoColorSpace;
   map.wrapS=map.wrapT=THREE.RepeatWrapping;map.minFilter=THREE.LinearMipmapLinearFilter;map.magFilter=THREE.LinearFilter;
-  map.generateMipmaps=true;map.anisotropy=2;map.needsUpdate=true;return map;
+  map.generateMipmaps=true;map.anisotropy=4;map.needsUpdate=true;
+  const colour=new THREE.DataTexture(colourData,size,size);
+  colour.colorSpace=THREE.SRGBColorSpace;colour.wrapS=colour.wrapT=THREE.RepeatWrapping;
+  colour.minFilter=THREE.LinearMipmapLinearFilter;colour.magFilter=THREE.LinearFilter;
+  colour.generateMipmaps=true;colour.anisotropy=4;colour.needsUpdate=true;
+  return {relief:map,colour};
 }
 
 function cliffPoint(cliff,angle,t){
   const joint=Math.pow(Math.max(0,Math.cos(angle*9+cliff.seed)),12);
   const outline=.94+Math.sin(angle*3+cliff.seed)*.16+Math.cos(angle*7-cliff.seed*.7)*.085+Math.sin(angle*17+cliff.seed)*.025-joint*.085;
-  const shelf=.075*Math.tanh(Math.sin(t*Math.PI*9+cliff.seed)*4);
-  const profile=.80+Math.sin(t*Math.PI*.88)*.18+Math.pow(1-t,4)*.28+shelf+Math.sin(t*19+cliff.seed)*.035;
+  const layerPhase=t*Math.PI*11+cliff.seed+Math.sin(angle*3+cliff.seed)*.65+Math.sin(angle*11+t*5)*.12;
+  const shelf=.034*Math.tanh(Math.sin(layerPhase)*3.5);
+  const fluting=.024*Math.sin(angle*29+Math.sin(t*7+cliff.seed)*1.7)*Math.sin(Math.PI*t);
+  const profile=.80+Math.sin(t*Math.PI*.88)*.18+Math.pow(1-t,4)*.28+shelf+fluting+Math.sin(t*19+cliff.seed)*.025;
   const radius=cliff.radius*outline*profile;
   return new THREE.Vector3(
     cliff.x+Math.cos(angle)*radius*1.18+Math.sin(t*2.1+cliff.seed)*t*.75,
@@ -73,7 +85,7 @@ function cliffGeometry(cliff,highDetail){
     for(let i=0;i<radial;i++){
       const angle=i*Math.PI*2/radial,point=cliffPoint(cliff,angle,t);p.push(point.x,point.y,point.z);
       const damp=THREE.MathUtils.lerp(.52,1,THREE.MathUtils.smoothstep(point.y,-.6,3.2));
-      const stratum=.91+Math.sin(point.y*2.4+cliff.seed)*.12+Math.sin(point.y*7.2+angle*.35)*.055;
+      const stratum=.91+Math.sin(point.y*2.4+cliff.seed)*.065+Math.sin(point.y*7.2+angle*.35)*.030;
       const shade=stratum*damp*(.86+hash(point.x*.65,point.y*.2,point.z*.65,cliff.seed)*.16);
       const seam=Math.pow(.5+.5*Math.cos(angle*12+cliff.seed),10);
       const moss=THREE.MathUtils.clamp(THREE.MathUtils.smoothstep(t,.38,.98)*seam*.82,0,.72);
@@ -255,7 +267,10 @@ export function createAelysBackdrop({highDetail=true}={}){
   for(const cliff of cliffs){
     const cliffMesh=cliffGeometry(cliff,highDetail);
     cliff.blocker=cliffBlocker(cliff,cliffMesh,highDetail?48:24,highDetail?36:18);
-    append(geology,cliffMesh,identity,ROCK);
+    // Keep limestone breaks crisp while retaining smooth erosion on small bends.
+    const shaded=toCreasedNormals(cliffMesh,Math.PI*32/180);
+    if(shaded!==cliffMesh)cliffMesh.dispose();
+    append(geology,shaded,identity,ROCK);
     for(let i=0;i<(highDetail?9:5);i++){
       const a=i*2.399963+cliff.seed,offset=cliff.radius*(.12+hash(i,1,0,cliff.seed)*.32);
       append(vegetation,mossPatch(cliff.x+Math.cos(a)*offset,cliff.height+.055,cliff.z+Math.sin(a)*offset,.8+hash(i,2,0,cliff.seed)*.9,cliff.seed+i,highDetail),identity,MOSS);
@@ -280,7 +295,7 @@ export function createAelysBackdrop({highDetail=true}={}){
   for(const [data,roughness,name] of [[geology,.96,'Falaises stratifiées'],[masonry,.88,'Maçonnerie ancienne'],[vegetation,1,'Mousses des plateaux']]){
     const material=new THREE.MeshStandardMaterial({color:0xffffff,vertexColors:true,roughness,metalness:0});
     if(data!==vegetation){
-      material.bumpMap=limestone;material.roughnessMap=limestone;material.roughness=1;
+      material.map=limestone.colour;material.bumpMap=limestone.relief;material.roughnessMap=limestone.relief;material.roughness=1;
       material.bumpScale=data===geology?.22:.10;
     }
     const mesh=new THREE.Mesh(finish(data),material);mesh.name=name;

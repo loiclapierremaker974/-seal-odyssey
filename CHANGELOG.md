@@ -9,6 +9,7 @@ Les changements notables de cette reprise locale sont consignés ici. Le format 
 - Pelage court en volume, solidaire du squelette ; densité et longueur réduites quand Luma est mouillée. Coques de fourrure limitées selon le profil graphique.
 - Crâne plus arrondi, yeux moins saillants et reflets cornéens plus discrets ; taches plus petites et irrégulières.
 - Roche côtière sculptée en strates, cavités et coulures de végétation ; contour des collisions conservé sur le relief rendu.
+- Raccord des nageoires arrière solidaire de leur articulation ; correction de séparation aux sommets des contours côtiers fermés.
 - Lumière plus chaude et contrastée, ciel bleu plus soutenu, sable ondulé, galets et herbes plus fines.
 
 Le modèle et le décor restent procéduraux. Cette passe rapproche leur aspect de la fiche ; elle n’en atteint pas encore la qualité finale.
