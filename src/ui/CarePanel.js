@@ -343,6 +343,7 @@ export class CarePanel {
   }
 
   destroy() {
+    this.close();
     this.abortController.abort();
     this.element.remove();
   }

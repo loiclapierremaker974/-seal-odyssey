@@ -25,7 +25,7 @@ for(const [name,filename] of [['desktop','desktop-high-exploration.jpg'],['tacti
     catch(fallbackError){if(fallbackError.code==='ENOENT')continue;throw fallbackError;}
   }
   if(image.length<3||image[0]!==0xff||image[1]!==0xd8)throw new Error('Invalid JPEG: '+filename);
-  const content=JSON.stringify({sourceSha,runId,status:report.status,phase,imageBase64:image.toString('base64'),mimeType:'image/jpeg'})+'\n';
+  const content=JSON.stringify({sourceSha,runId,status:report.cases.find(c=>c.name===(name==='tactile'?'touch-landscape-low':'desktop-high'))?.status??report.status,runStatus:report.status,phase,imageBase64:image.toString('base64'),mimeType:'image/jpeg'})+'\n';
   if(Buffer.byteLength(content)>maxBytes)throw new Error('Capture exceeds 1 MB');
   files.push({path:name+'.json',content});
 }

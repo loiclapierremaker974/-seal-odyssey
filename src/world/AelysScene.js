@@ -11,7 +11,7 @@ import {
 
 const SKY_COLOUR = new THREE.Color(0x8dd6d5);
 const DEEP_COLOUR = new THREE.Color(0x062f42);
-const FOG_SURFACE = new THREE.Color(0x80cac7);
+const FOG_SURFACE = new THREE.Color(0x8ab3c0);
 const FOG_DEEP = new THREE.Color(0x07364a);
 
 function smoothstep(minimum, maximum, value) {
@@ -63,6 +63,64 @@ function terrainColour(height) {
   return new THREE.Color(0x294f5c);
 }
 
+
+function createSandRelief() {
+  const size=128,data=new Uint8Array(size*size*4);
+  const random=seededRandom(7201);
+  for(let i=0;i<size*size;i++){
+    const grain=110+Math.floor(random()*65);
+    data[i*4]=data[i*4+1]=data[i*4+2]=grain;data[i*4+3]=255;
+  }
+  const map=new THREE.DataTexture(data,size,size);
+  map.wrapS=map.wrapT=THREE.RepeatWrapping;map.repeat.set(24,24);
+  map.magFilter=THREE.LinearFilter;map.minFilter=THREE.LinearMipmapLinearFilter;
+  map.generateMipmaps=true;map.needsUpdate=true;return map;
+}
+
+function createCoastalGrass() {
+  const p=[],colours=[],indices=[];
+  const base=new THREE.Color(0x3d604b),tip=new THREE.Color(0x86966a);
+  for(let blade=0;blade<7;blade++){
+    const a=blade*2.399,height=.22+(blade%4)*.055,offset=p.length/3;
+    for(let row=0;row<=4;row++){
+      const t=row/4,lean=t*t*.18,halfWidth=.033*Math.sin(Math.PI*t*.85)+.005;
+      const c=base.clone().lerp(tip,t);
+      for(const side of [-1,0,1]){
+        const width=side*halfWidth;
+        p.push(Math.cos(a)*lean-Math.sin(a)*width,height*t-(side===0?0:.006),Math.sin(a)*lean+Math.cos(a)*width);
+        colours.push(c.r,c.g,c.b);
+      }
+    }
+    for(let row=0;row<4;row++)for(let half=0;half<2;half++){
+      const i=offset+row*3+half,j=i+3;indices.push(i,j,i+1,j,j+1,i+1);
+    }
+  }
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));
+  g.setAttribute('color',new THREE.Float32BufferAttribute(colours,3));g.setIndex(indices);g.computeVertexNormals();return g;
+}
+
+function createClouds() {
+  const width=256,height=128,data=new Uint8Array(width*height*4);
+  for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+    const u=x/width,v=y/height,i=(y*width+x)*4;
+    let density=0;
+    for(const [cx,cy,rx,ry] of [[.24,.5,.18,.25],[.44,.51,.22,.31],[.65,.46,.18,.23],[.79,.48,.12,.17],[.53,.65,.14,.17]]){
+      density+=Math.exp(-2.3*(((u-cx)/rx)**2+((v-cy)/ry)**2));
+    }
+    const wisps=1+Math.sin(u*48+Math.sin(v*29))*Math.sin(v*42)*.17;
+    const alpha=smoothstep(.11,.8,density*wisps)*.78;
+    data[i]=246;data[i+1]=205+Math.floor(v*29);data[i+2]=187+Math.floor(v*43);data[i+3]=Math.round(alpha*255);
+  }
+  const map=new THREE.DataTexture(data,width,height);map.colorSpace=THREE.SRGBColorSpace;
+  map.magFilter=THREE.LinearFilter;map.minFilter=THREE.LinearFilter;map.needsUpdate=true;
+  const material=new THREE.MeshBasicMaterial({map,transparent:true,depthWrite:false,fog:false});
+  const geometry=new THREE.PlaneGeometry(1,1),group=new THREE.Group();
+  for(const [x,y,z,w,h,angle] of [[-24,23,-49,28,10,.12],[16,27,-55,32,11,-.1],[34,19,-39,20,8,-.4]]){
+    const cloud=new THREE.Mesh(geometry,material);cloud.position.set(x,y,z);cloud.scale.set(w,h,1);cloud.rotation.y=angle;group.add(cloud);
+  }
+  group.name='Nuages lumineux d’Aelys';return group;
+}
+
 function createTerrain(quality) {
   const segments = quality === 'low' ? 46 : 72;
   const geometry = new THREE.PlaneGeometry(WORLD.size, WORLD.size, segments, segments);
@@ -81,8 +139,10 @@ function createTerrain(quality) {
   geometry.computeVertexNormals();
   const material = new THREE.MeshStandardMaterial({
     vertexColors: true,
-    roughness: 0.9,
-    metalness: 0.03,
+    roughness: 0.94,
+    metalness: 0,
+    bumpMap: createSandRelief(),
+    bumpScale: .045,
   });
   const terrain = new THREE.Mesh(geometry, material);
   terrain.name = 'Aelys terrain and seabed';
@@ -106,7 +166,7 @@ function createSky() {
     depthWrite: false,
     uniforms: {
       uTop: { value: new THREE.Color(0x548caf) },
-      uHorizon: { value: new THREE.Color(0xd4e1df) },
+      uHorizon: { value: new THREE.Color(0x87bed3) },
       uWarm: { value: new THREE.Color(0xf3c28f) },
     },
     vertexShader: `
@@ -442,14 +502,14 @@ export class AelysScene {
       this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     }
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.05;
+    this.renderer.toneMappingExposure = .92;
     this.renderer.shadowMap.enabled = !this.lowPower;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     this.scene = new THREE.Scene();
     this.scene.name = 'Aelys - Onde Premiere vertical slice';
     this.scene.background = SKY_COLOUR.clone();
-    this.scene.fog = new THREE.FogExp2(FOG_SURFACE.clone(), 0.017);
+    this.scene.fog = new THREE.FogExp2(FOG_SURFACE.clone(), 0.009);
     this.camera = new THREE.PerspectiveCamera(
       RENDER.fieldOfView,
       1,
@@ -488,7 +548,7 @@ export class AelysScene {
     this.scene.add(this.backdrop);
 
 
-    const hemisphere = new THREE.HemisphereLight(0xc8e5ed, 0x605543, 1.65);
+    const hemisphere = new THREE.HemisphereLight(0xc8e5ed, 0x605543, .82);
     hemisphere.name = 'Aelys sky fill';
     this.scene.add(hemisphere);
 
@@ -513,6 +573,9 @@ export class AelysScene {
     sun.name = 'Aelys sun';
     sun.position.set(-35, 25, -54);
     this.scene.add(sun);
+    this.scene.add(createClouds());
+    const portraitFill=new THREE.DirectionalLight(0xffebce,.72);
+    portraitFill.position.set(-6,7,10);this.scene.add(portraitFill);
 
     this.terrain = createTerrain(this.quality);
     this.scene.add(this.terrain);
@@ -536,11 +599,20 @@ export class AelysScene {
   _createRocksAndPlants() {
     const random = seededRandom(1087);
     const rockMaterial = new THREE.MeshStandardMaterial({
-      color: 0x556d68,
-      roughness: 0.92,
-      metalness: 0.03,
+      color: 0x817d70,
+      roughness: 0.94,
+      metalness: 0,
+      bumpMap: this.terrain.material.bumpMap,
+      bumpScale: .022,
     });
-    const rockGeometry = new THREE.DodecahedronGeometry(1, 0);
+    const rockGeometry = new THREE.IcosahedronGeometry(1, this.lowPower ? 1 : 2);
+    const rockPositions=rockGeometry.attributes.position;
+    for(let i=0;i<rockPositions.count;i++){
+      const x=rockPositions.getX(i),y=rockPositions.getY(i),z=rockPositions.getZ(i);
+      const grain=1+Math.sin(x*8.1+z*4.7)*.065+Math.cos(y*9.3-x*3.2)*.035;
+      rockPositions.setXYZ(i,x*grain,y*grain*.72,z*grain);
+    }
+    rockGeometry.computeVertexNormals();
     const rockCount = this.lowPower ? 17 : 29;
     const rockMesh = new THREE.InstancedMesh(rockGeometry, rockMaterial, rockCount);
     rockMesh.name = 'Aelys shoreline rocks';
@@ -606,13 +678,14 @@ export class AelysScene {
     }
 
     const shrubMaterial = new THREE.MeshStandardMaterial({
-      color: 0x6d9270,
-      roughness: 0.88,
+      vertexColors: true,
+      roughness: .93,
+      side: THREE.DoubleSide,
     });
-    const shrubGeometry = new THREE.ConeGeometry(0.22, 0.74, 5);
+    const shrubGeometry = createCoastalGrass();
     const shrubCount = this.lowPower ? 16 : 30;
     const shrubs = new THREE.InstancedMesh(shrubGeometry, shrubMaterial, shrubCount);
-    shrubs.name = 'Rivage d Aelys vegetation';
+    shrubs.name = 'Herbes souples du rivage';
     let written = 0;
     while (written < shrubCount) {
       const angle = random() * Math.PI * 2;
@@ -620,8 +693,8 @@ export class AelysScene {
       const x = Math.cos(angle) * radius;
       const z = WORLD.islandCenter.z + Math.sin(angle) * radius;
       const y = getAelysTerrainHeight(x, z);
-      if (y < 0.25) continue;
-      transform.position.set(x, y + 0.3, z);
+      if (y < 0.25 || Math.hypot(x-WORLD.spawn.x,z-WORLD.spawn.z)<1.7) continue;
+      transform.position.set(x, y + 0.025, z);
       transform.rotation.set(0, random() * Math.PI, (random() - 0.5) * 0.2);
       const size = 0.62 + random() * 0.9;
       transform.scale.set(size, size, size);
@@ -760,8 +833,8 @@ export class AelysScene {
     this._underwaterMix += (depth - this._underwaterMix) * (1 - Math.exp(-4 * delta));
     this.scene.background.copy(SKY_COLOUR).lerp(DEEP_COLOUR, this._underwaterMix);
     this.scene.fog.color.copy(FOG_SURFACE).lerp(FOG_DEEP, this._underwaterMix);
-    this.scene.fog.density = THREE.MathUtils.lerp(0.017, 0.078, this._underwaterMix);
-    this.renderer.toneMappingExposure = THREE.MathUtils.lerp(1.05, 0.84, this._underwaterMix);
+    this.scene.fog.density = THREE.MathUtils.lerp(0.009, 0.078, this._underwaterMix);
+    this.renderer.toneMappingExposure = THREE.MathUtils.lerp(.92, .80, this._underwaterMix);
     this.sky.visible = this._underwaterMix < 0.82;
   }
 

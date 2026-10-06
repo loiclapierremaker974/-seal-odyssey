@@ -23,3 +23,11 @@ test('centre and world-edge contacts remain finite and inside the water bounds',
   assert.equal(resolveCoastalMovement(edge,{x:42,y:-1,z:42},.4,[]),true);
   assert.deepEqual(edge,{x:43,y:-1,z:43});
 });
+
+test('irregular coastline collisions follow the visible outline rather than its inner core',()=>{
+  const outline=new Float32Array([20,-23,28,-23,28,-17,20,-17]);
+  const cliff={x:24,z:-20,rx:1,rz:1,broadRadius:10,bottom:-5,top:10,outlineAtHeight:()=>outline};
+  const p={x:20.2,y:-2,z:-20};
+  assert.equal(resolveCoastalMovement(p,{x:19,y:-2,z:-20},.4,[cliff]),true);
+  assert.ok(p.x<19.6);assert.equal(p.y,-2);
+});

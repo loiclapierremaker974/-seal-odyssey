@@ -141,12 +141,35 @@ async function testSoundToggle(page, keyboard) {
   assert.ok(await page.getByRole('button', { name: initialLabel, exact: true }).isVisible(), 'Sound accessible name must restore after the second toggle.');
   return { initialState: initial, toggledState: changed, restoredState: initial, validated: 'Accessible controls and state only; no audio-output assertion.' };
 }
+
+function installCaptureGate() {
+  const nativeRAF=window.requestAnimationFrame.bind(window),nativeCancel=window.cancelAnimationFrame.bind(window);
+  const pending=new Map();let paused=false,next=1;
+  const schedule=(id,entry)=>{
+    entry.native=nativeRAF(time=>{
+      if(!pending.has(id))return;
+      if(paused){entry.native=0;return;}
+      pending.delete(id);entry.callback(time);
+    });
+  };
+  window.requestAnimationFrame=callback=>{
+    const id=next++,entry={callback,native:0};pending.set(id,entry);schedule(id,entry);return id;
+  };
+  window.cancelAnimationFrame=id=>{
+    const entry=pending.get(id);if(entry?.native)nativeCancel(entry.native);pending.delete(id);
+  };
+  window.__sealSmokeFrames={
+    pause(){paused=true;document.querySelector('canvas')?.getContext('webgl2')?.finish();},
+    resume(){paused=false;for(const [id,entry] of pending)if(!entry.native)schedule(id,entry);}
+  };
+}
+
 async function runScenario(scenario) {
   const result = { name: scenario.name, expectedQuality: scenario.expectedQuality, status: 'running', consoleErrors: [], pageErrors: [], requestFailures: [], httpErrors: [], warnings: [], screenshots: [] };
   report.cases.push(result);
   const context = await browser.newContext({ ...scenario.options, serviceWorkers: 'block' });
   const page = await context.newPage();
-  page.setDefaultTimeout(15000); page.setDefaultNavigationTimeout(30000);
+  page.setDefaultTimeout(45000); page.setDefaultNavigationTimeout(30000);
   page.on('console', (message) => {
     if (message.type() === 'error') result.consoleErrors.push(message.text());
     if (message.type() === 'warning' && result.warnings.length < 30) result.warnings.push(message.text());
@@ -160,12 +183,20 @@ async function runScenario(scenario) {
     for (const [name, value] of [['hardwareConcurrency', 8], ['deviceMemory', 8]]) Object.defineProperty(navigator, name, { configurable: true, get: () => value });
   });
   await page.addInitScript(installWebGLProbe);
+  await page.addInitScript(installCaptureGate);
   const screenshot = async (phase) => {
     const filename = scenario.name + '-' + phase + '.png';
-    await page.screenshot({ path: join(artifactDirectory, filename), timeout: 15000 });
-    result.screenshots.push(filename);
-    if (['exploration', 'failure', 'care'].includes(phase)) {
-      await page.screenshot({ path: join(artifactDirectory, scenario.name + '-' + phase + '.jpg'), type: 'jpeg', quality: 82, timeout: 15000 });
+    // Briefly hold browser RAF callbacks and drain software GL for a stable,
+    // actual game frame. The production renderer/game code is unchanged.
+    await page.evaluate(()=>window.__sealSmokeFrames.pause());
+    try {
+      await page.screenshot({ path: join(artifactDirectory, filename), timeout: 45000, animations: 'disabled' });
+      result.screenshots.push(filename);
+      if (['exploration', 'failure', 'care'].includes(phase)) {
+        await page.screenshot({ path: join(artifactDirectory, scenario.name + '-' + phase + '.jpg'), type: 'jpeg', quality: 82, timeout: 45000, animations: 'disabled' });
+      }
+    } finally {
+      await page.evaluate(()=>window.__sealSmokeFrames.resume());
     }
   };
   try {

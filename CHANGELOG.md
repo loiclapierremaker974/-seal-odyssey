@@ -14,7 +14,9 @@ Les changements notables de cette reprise locale sont consignés ici. Le format 
 
 ### Amélioré
 
-- Rivage sableux, lumière chaude, environnement de réflexion et caméra rapprochée.
+- Rivage sableux avec grain, rochers érodés, herbes courbées, nuages chauds et relief de calcaire ; lumière et brouillard ajustés d’après les captures réelles.
+- Caméra rapprochée et environnement de réflexion.
+- Collisions côtières suivant le contour visible à la profondeur du phoque.
 - Animation de Luma pendant l’introduction et le soin ; écran de soin avec le vrai personnage 3D et une caméra rapprochée.
 - Correction d’un identifiant GLSL réservé qui empêchait le shader d’eau de compiler.
 - Libération unique des cartes et squelettes du personnage lors de la fermeture.

@@ -214,12 +214,12 @@ export function createLumaProxy({scale=.62,shadows=true,highDetail=true}={}) {
   const eyes=[];
   for(const side of [-1,1]) {
     const socket=new THREE.Group();socket.position.set(...facePos(side*.30,1.61,1.50));socket.rotation.y=side*.36;face.add(socket);
-    addMesh(socket,'Luma eyelid rim',sphere,lidMaterial,[0,0,0],[.165,.191,.087]);
+    addMesh(socket,'Luma eyelid rim',sphere,lidMaterial,[0,0,0],[.148,.167,.087]);
     const blink=new THREE.Group();socket.add(blink);
-    const eye=addMesh(blink,side<0?'Luma left eye':'Luma right eye',sphere,eyeMaterial,[0,0,.032],[.144,.169,.087]);
+    const eye=addMesh(blink,side<0?'Luma left eye':'Luma right eye',sphere,eyeMaterial,[0,0,.032],[.128,.147,.087]);
     // Small reflected sky patches move and close with the cornea.
     const glintMaterial=new THREE.MeshBasicMaterial({color:0xf1f5f0,transparent:true,opacity:.82});
-    addMesh(blink,'Luma corneal reflection',sphere,glintMaterial,[-.041,.061,.109],[.038,.023,.009]).castShadow=false;
+    addMesh(blink,'Luma corneal reflection',sphere,glintMaterial,[-.041,.061,.109],[.033,.021,.009]).castShadow=false;
     addMesh(blink,'Luma small eye reflection',sphere,glintMaterial,[.052,-.042,.110],[.012,.010,.005]).castShadow=false;
     eyes.push(blink);eye.userData.cornea=true;
   }
