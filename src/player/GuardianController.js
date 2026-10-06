@@ -57,6 +57,7 @@ export class GuardianController {
     this.enabled = true;
 
     this.velocity = new THREE.Vector3();
+    this._previousPosition = object.position.clone();
     this.yaw = CAMERA.initialYaw;
     this.pitch = CAMERA.initialPitch;
     this._cameraLookTarget = object.position.clone();
@@ -380,10 +381,12 @@ export class GuardianController {
     this._applyLook(dt, inputState);
 
     if (!this.enabled || dt === 0) {
+      this.object.userData.update?.(dt, { ...this.state, speed: 0, moving: false });
       this._updateCamera(Math.max(dt, 1 / 120));
       return this.getState();
     }
 
+    this._previousPosition.copy(this.object.position);
     let sample = this._sampleEnvironment(this.object.position);
     this.state.mode = this._resolveMode(sample, this.state.mode);
     if (this.input.consumePressed?.('dive')) {
@@ -422,6 +425,11 @@ export class GuardianController {
       sample = this._updateUnderwater(dt, desiredDirection, speed, sample, effectiveInput);
     }
 
+    if (this.environment?.resolveMovement?.(this.object.position, this._previousPosition, this.object.userData.collisionRadius || .4)) {
+      this.velocity.x = 0;
+      this.velocity.z = 0;
+      sample = this._sampleEnvironment(this.object.position);
+    }
     this.state.mode = this._resolveMode(sample, this.state.mode);
     this.state.speed = this.velocity.length();
     this.state.normalizedSpeed = THREE.MathUtils.clamp(

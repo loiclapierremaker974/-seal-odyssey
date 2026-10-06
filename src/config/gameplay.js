@@ -85,14 +85,14 @@ export const VITALS = Object.freeze({
 });
 
 export const CAMERA = Object.freeze({
-  distanceLand: 6.1,
-  distanceWater: 6.7,
-  distanceUnderwater: 7.1,
+  distanceLand: 4.65,
+  distanceWater: 5.5,
+  distanceUnderwater: 5.8,
   targetHeightLand: 0.7,
   targetHeightWater: 0.45,
   targetHeightUnderwater: 0.15,
-  initialYaw: 0,
-  initialPitch: 0.3,
+  initialYaw: 0.28,
+  initialPitch: 0.2,
   minPitch: -0.28,
   maxPitch: 0.92,
   lookSensitivity: 0.0033,

@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { resolveCoastalMovement } from './coastalCollision.js';
+import { createAelysBackdrop } from './createAelysBackdrop.js';
 import { createAelysWater } from './createAelysWater.js';
 import {
   ECHOES,
@@ -54,8 +56,8 @@ export function getAelysTerrainHeight(x, z) {
 }
 
 function terrainColour(height) {
-  if (height > 0.82) return new THREE.Color(0x587862);
-  if (height > 0.08) return new THREE.Color(0xbca678);
+  if (height > 0.82) return new THREE.Color(0xcbb992);
+  if (height > 0.08) return new THREE.Color(0xd2bd92);
   if (height > -1.35) return new THREE.Color(0x698c82);
   if (height > -3.2) return new THREE.Color(0x426e6e);
   return new THREE.Color(0x294f5c);
@@ -103,8 +105,8 @@ function createSky() {
     side: THREE.BackSide,
     depthWrite: false,
     uniforms: {
-      uTop: { value: new THREE.Color(0x3e8798) },
-      uHorizon: { value: new THREE.Color(0xc0e5dc) },
+      uTop: { value: new THREE.Color(0x548caf) },
+      uHorizon: { value: new THREE.Color(0xd4e1df) },
       uWarm: { value: new THREE.Color(0xf3c28f) },
     },
     vertexShader: `
@@ -469,9 +471,24 @@ export class AelysScene {
 
   _buildWorld() {
     this.sky = createSky();
+    
     this.scene.add(this.sky);
+    const reflectionScene = new THREE.Scene();
+    const reflectionSky = createSky();
+    reflectionScene.add(reflectionSky);
+    const reflectedSun = new THREE.Mesh(new THREE.SphereGeometry(3.8, 12, 8),
+      new THREE.MeshBasicMaterial({color:0xffe8be}));
+    reflectedSun.position.set(-35,25,-54);reflectionScene.add(reflectedSun);
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this._reflectionTarget = pmrem.fromScene(reflectionScene, .025, .1, 150);
+    this.scene.environment = this._reflectionTarget.texture;
+    pmrem.dispose();
+    reflectionScene.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});
+    this.backdrop = createAelysBackdrop({highDetail:!this.lowPower});
+    this.scene.add(this.backdrop);
 
-    const hemisphere = new THREE.HemisphereLight(0xb9eee9, 0x193e45, 2.0);
+
+    const hemisphere = new THREE.HemisphereLight(0xc8e5ed, 0x605543, 1.65);
     hemisphere.name = 'Aelys sky fill';
     this.scene.add(hemisphere);
 
@@ -984,6 +1001,12 @@ export class AelysScene {
     if (!this._disposed) this.renderer.render(this.scene, this.camera);
   }
 
+
+  /** Resolve solid distant coastline before the camera and animation update. */
+  resolveMovement(position, previous, radius = .4) {
+    return resolveCoastalMovement(position, previous, radius, this.backdrop.userData.blockers || []);
+  }
+
   dispose() {
     if (this._disposed) return;
     this._disposed = true;
@@ -1002,7 +1025,18 @@ export class AelysScene {
     });
     geometries.forEach((geometry) => geometry.dispose());
     this.water.material.uniforms.uSeabed.value.dispose();
-    materials.forEach(disposeMaterial);
+    
+    const textures = new Set();
+    materials.forEach(material => {
+      for (const value of Object.values(material)) if (value?.isTexture) textures.add(value);
+      material.dispose();
+    });
+    textures.forEach(texture=>texture.dispose());
+    const skeletons = new Set();
+    this.scene.traverse(o=>{if(o.skeleton)skeletons.add(o.skeleton);});
+    skeletons.forEach(s=>s.dispose());
+    this._reflectionTarget?.dispose();
+
     this.renderer.dispose();
     if (this._ownsCanvas) this.canvas.remove();
   }

@@ -1,7 +1,7 @@
 {
   "name": "seal-odyssey-p0",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "packageManager": "pnpm@11.19.0",
   "type": "module",
   "description": "Fondation P0 locale et PWA de Seal Odyssey.",

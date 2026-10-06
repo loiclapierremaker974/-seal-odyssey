@@ -164,6 +164,9 @@ async function runScenario(scenario) {
     const filename = scenario.name + '-' + phase + '.png';
     await page.screenshot({ path: join(artifactDirectory, filename), timeout: 15000 });
     result.screenshots.push(filename);
+    if (phase === 'exploration') {
+      await page.screenshot({ path: join(artifactDirectory, scenario.name + '-exploration.jpg'), type: 'jpeg', quality: 82, timeout: 15000 });
+    }
   };
   try {
     const response = await page.goto(appURL, { waitUntil: 'domcontentloaded' });

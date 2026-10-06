@@ -9,7 +9,7 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: validate-prototype-${{ github.event.pull_request.number || github.ref }}
@@ -56,6 +56,12 @@ jobs:
 
       - name: Validate production WebGL and interactions
         run: node "$RUNNER_TEMP/seal-smoke/browser-smoke.mjs"
+
+      - name: Publish actual browser render previews
+        if: ${{ always() && github.event_name == 'push' && hashFiles('artifacts-smoke/report.json') != '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/publish-render-previews.mjs
 
       - name: Upload browser diagnostics
         if: always()
