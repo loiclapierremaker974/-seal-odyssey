@@ -5,7 +5,7 @@ Cette arborescence est une reprise locale propre de **Seal Odyssey** : une verti
 [![Test and deploy Seal Odyssey](https://github.com/loiclapierremaker974/-seal-odyssey/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/loiclapierremaker974/-seal-odyssey/actions/workflows/deploy-pages.yml)
 
 > [!IMPORTANT]
-> Le dossier maître décrit une bêta avancée et cite un ancien dépôt GitHub, mais ni les sources de cette bêta, ni son archive ZIP, ni un dépôt exploitable n'étaient présents dans la transmission du 2 octobre 2026. Cette fondation ne prétend donc pas être cette bêta. La version 0.3.0 reconstruit Luma et les falaises d’Aelys à partir de la fiche visible du 6 octobre. Les modèles restent procéduraux et la qualité de l’illustration reste une cible artistique.
+> Le dossier maître décrit une bêta avancée et cite un ancien dépôt GitHub, mais ni les sources de cette bêta, ni son archive ZIP, ni un dépôt exploitable n'étaient présents dans la transmission du 2 octobre 2026. Cette fondation ne prétend donc pas être cette bêta. La version 0.3.1 affine Luma (pelage court en volume, yeux et crâne) et les falaises d’Aelys à partir de la fiche visible du 6 octobre. Les modèles restent procéduraux et la qualité de l’illustration reste une cible artistique.
 
 Les dossiers de référence transmis par le créateur restent des sources de travail privées. Ils ne sont pas intégrés comme assets de production : leur provenance et leur usage final doivent d'abord être confirmés. Les exécutables sans rapport avec le jeu ont été laissés intacts.
 

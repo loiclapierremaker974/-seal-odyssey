@@ -13,7 +13,7 @@ import { AelysScene } from './world/AelysScene.js';
 import { createLumaProxy } from './world/createLumaProxy.js';
 
 const APP_VERSION =
-  typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.3.0';
+  typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.3.1';
 const BUILD_ID =
   typeof __BUILD_ID__ !== 'undefined'
     ? __BUILD_ID__

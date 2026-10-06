@@ -1,4 +1,6 @@
 import test from 'node:test';
+import * as THREE from 'three';
+import { createAelysBackdrop } from '../src/world/createAelysBackdrop.js';
 import assert from 'node:assert/strict';
 import { resolveCoastalMovement } from '../src/world/coastalCollision.js';
 
@@ -30,4 +32,33 @@ test('irregular coastline collisions follow the visible outline rather than its 
   const p={x:20.2,y:-2,z:-20};
   assert.equal(resolveCoastalMovement(p,{x:19,y:-2,z:-20},.4,[cliff]),true);
   assert.ok(p.x<19.6);assert.equal(p.y,-2);
+});
+
+test('sculpted coastal contours remain closed and follow the rendered rock triangles',()=>{
+  for(const highDetail of [false,true]){
+    const backdrop=createAelysBackdrop({highDetail});
+    const geology=backdrop.getObjectByName('Falaises stratifiées');
+    geology.material.side=THREE.DoubleSide;backdrop.updateMatrixWorld(true);
+    for(const blocker of backdrop.userData.blockers){
+      for(const y of [-4.6,-2,0,1.7]){
+        const p=blocker.outlineAtHeight(y);
+        assert.ok(p.length>=8&&p.every(Number.isFinite));
+        assert.ok(Math.hypot(p[0]-p.at(-2),p[1]-p.at(-1))<1e-5,'The outline must be closed.');
+        const point={x:p[0],y,z:p[1]};
+        resolveCoastalMovement(point,{x:blocker.x,y,z:blocker.z},.1,[blocker]);
+        assert.ok(Number.isFinite(point.x+point.z));
+      }
+    }
+    const blocker=backdrop.userData.blockers[1],outline=blocker.outlineAtHeight(1.7);
+    for(let i=0;i<outline.length-2;i+=18){
+      const point=new THREE.Vector3(outline[i],1.7,outline[i+1]);
+      const normal=new THREE.Vector3(point.x-blocker.x,0,point.z-blocker.z).normalize();
+      const ray=new THREE.Raycaster(point.clone().addScaledVector(normal,.15),normal.clone().negate(),0,.30);
+      const hits=ray.intersectObject(geology);
+      assert.ok(hits.some(hit=>hit.point.distanceTo(point)<1e-4),'Collision edge lies on a rendered cliff triangle.');
+    }
+    const geometries=new Set(),materials=new Set(),textures=new Set();
+    backdrop.traverse(o=>{if(o.geometry)geometries.add(o.geometry);if(o.material){materials.add(o.material);for(const v of Object.values(o.material))if(v?.isTexture)textures.add(v);}});
+    geometries.forEach(g=>g.dispose());textures.forEach(t=>t.dispose());materials.forEach(m=>m.dispose());
+  }
 });

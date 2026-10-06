@@ -11,8 +11,8 @@ const PROFILE = [
   [-1.20, .37, .43, .33], [-.78, .48, .59, .45],
   [-.28, .57, .68, .54], [.18, .67, .65, .63],
   [.52, .84, .54, .73], [.78, 1.12, .45, .68],
-  [1.02, 1.41, .49, .53], [1.24, 1.48, .52, .47],
-  [1.46, 1.45, .42, .37], [1.64, 1.36, .25, .23],
+  [1.02, 1.41, .54, .53], [1.24, 1.48, .56, .47],
+  [1.46, 1.43, .46, .37], [1.64, 1.34, .27, .23],
   [1.76, 1.31, .025, .025],
 ];
 
@@ -91,7 +91,7 @@ function randomGenerator(seed) {
 }
 
 function makeSkinTextures(highDetail) {
-  const width = highDetail ? 1024 : 512, height = width / 2;
+  const width = highDetail ? 2048 : 1024, height = width / 2;
   const albedo = new Uint8Array(width * height * 4);
   const relief = new Uint8Array(albedo.length), roughness = new Uint8Array(albedo.length);
   const random = randomGenerator(16753);
@@ -101,20 +101,21 @@ function makeSkinTextures(highDetail) {
     const cream = clamp(ventral * .94 + smooth(.85, .99, v) * .30);
     const grain = random() - .5;
     const cloud = Math.sin(u * Math.PI * 14 + Math.sin(v * 19)) * Math.sin(v * 37) * 6;
-    const silver = [143, 141, 137], pale = [229, 222, 207];
+    const silver = [162, 153, 143], pale = [235, 226, 208];
     for (let c = 0; c < 3; c++) albedo[i+c] = silver[c] * (1-cream) + pale[c]*cream + cloud + grain*11;
     albedo[i+3] = relief[i+3] = roughness[i+3] = 255;
-    const hair = clamp(.5 + grain * .22 + Math.sin(x * .83 + y * .14) * .035);
+    const flow=x*.53+Math.sin(y*.018)*2.0;
+    const hair=clamp(.51+grain*.18+Math.sin(flow+y*.09)*.09+Math.sin(flow*2.1+y*.17)*.045);
     relief[i] = relief[i+1] = relief[i+2] = Math.round(hair*255);
     roughness[i] = roughness[i+1] = roughness[i+2] = 218 + Math.round(grain*20);
   }
   // Irregular, softly edged mottling printed into the skin, including the head.
-  for (let spot = 0; spot < 190; spot++) {
+  for (let spot = 0; spot < 310; spot++) {
     const u = random(), v = .07 + random() * .91;
-    const rx = (v > .78 ? .008 : .011) + random()*.010;
-    const ry = .007 + random() * .014;
+    const rx = (v > .78 ? .004 : .006) + random()*.009;
+    const ry = .005 + random() * .012;
     const rotation = random() * Math.PI, phase = random() * 6.28;
-    const strength = .40 + random() * .32;
+    const strength = .26 + random() * .34;
     const extentX = Math.ceil((rx+ry)*width), extentY = Math.ceil((rx+ry)*height);
     const cx = Math.floor(u*width), cy = Math.floor(v*height);
     for (let dy = -extentY; dy <= extentY; dy++) for (let dx = -extentX; dx <= extentX; dx++) {
@@ -135,9 +136,61 @@ function makeSkinTextures(highDetail) {
     t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.ClampToEdgeWrapping;
     t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter;
     t.generateMipmaps = true; t.colorSpace = colour ? THREE.SRGBColorSpace : THREE.NoColorSpace;
-    t.needsUpdate = true; return t;
+    t.anisotropy=4;t.needsUpdate = true; return t;
   };
   return { map:texture(albedo,true), bumpMap:texture(relief,false), roughnessMap:texture(roughness,false) };
+}
+
+
+/** Shared alpha coverage: fine longitudinal hairs, rather than white noise. */
+function makeFurCoverage() {
+  const size=256,data=new Uint8Array(size*size*4),random=randomGenerator(89412);
+  for(let i=0;i<size*size;i++){data[i*4+3]=255;}
+  for(let hair=0;hair<1550;hair++){
+    const x=Math.floor(random()*size),y=Math.floor(random()*size);
+    const length=5+Math.floor(random()*9),strength=150+random()*105,lean=(random()-.5)*.36;
+    for(let row=0;row<length;row++)for(let side=-1;side<=1;side++){
+      const xx=(x+Math.round(row*lean)+side+size)%size,yy=(y+row)%size;
+      const i=(yy*size+xx)*4;
+      const coverage=strength*(side===0?1:.30)*Math.pow(1-row/length,.35);
+      data[i]=data[i+1]=data[i+2]=Math.max(data[i+1],Math.round(coverage));
+    }
+  }
+  const map=new THREE.DataTexture(data,size,size);
+  map.wrapS=map.wrapT=THREE.RepeatWrapping;map.repeat.set(6,4);
+  map.magFilter=THREE.LinearFilter;map.minFilter=THREE.LinearMipmapLinearFilter;
+  map.generateMipmaps=true;map.anisotropy=4;map.needsUpdate=true;return map;
+}
+
+
+/** Opaque alpha-tested shells share the body rig and geometry (no second rig). */
+function createShortFur(body,textures,parent,highDetail) {
+  const coverage=makeFurCoverage(),count=highDetail?6:3,layers=[];
+  for(let i=1;i<=count;i++){
+    const fraction=i/count,lengthUniform={value:.006*fraction};
+    const material=new THREE.MeshStandardMaterial({
+      color:0xffffff,...textures,alphaMap:coverage,alphaTest:.16+fraction*.74,
+      roughness:.86,bumpScale:.010,metalness:0,envMapIntensity:.45,
+      transparent:false,depthWrite:true,
+    });
+    material.userData.furFraction=fraction;
+    material.userData.furLength=lengthUniform;
+    material.onBeforeCompile=shader=>{
+      shader.uniforms.uLumaFurLength=lengthUniform;
+      const marker='#include <begin_vertex>';
+      if(!shader.vertexShader.includes(marker))throw new Error('Luma fur: unsupported vertex shader.');
+      shader.vertexShader='uniform float uLumaFurLength;\n'+shader.vertexShader.replace(marker,
+        marker+'\ntransformed += normalize(normal) * uLumaFurLength * smoothstep(0.02, 0.15, position.y);');
+    };
+    material.customProgramCacheKey=()=> 'luma-short-fur-v1';
+    const coat=new THREE.SkinnedMesh(body.geometry,material);
+    coat.name='Luma short fur '+i;coat.frustumCulled=false;
+    coat.castShadow=false;coat.receiveShadow=true;coat.renderOrder=-i;
+    coat.bindMode=body.bindMode;coat.position.copy(body.position);coat.quaternion.copy(body.quaternion);coat.scale.copy(body.scale);
+    parent.add(coat);coat.bind(body.skeleton,body.bindMatrix);
+    layers.push({mesh:coat,material,fraction,lengthUniform});
+  }
+  return layers;
 }
 
 function flipperGeometry(highDetail, hind = false) {
@@ -180,14 +233,14 @@ function curveMesh(points,radius,material,highDetail) {
 export function createLumaProxy({scale=.62,shadows=true,highDetail=true}={}) {
   const root=new THREE.Group();root.name='Luma — phoque gris d’Aqualys';
   root.scale.setScalar(scale);
-  Object.assign(root.userData,{kind:'guardian',sealId:'luma',isProceduralProxy:true,modelRevision:'luma-reference-v1',collisionRadius:.68*scale});
+  Object.assign(root.userData,{kind:'guardian',sealId:'luma',isProceduralProxy:true,modelRevision:'luma-reference-v2',collisionRadius:.68*scale});
   const visual=new THREE.Group();root.add(visual);
   const textures=makeSkinTextures(highDetail);
-  const fur=new THREE.MeshPhysicalMaterial({color:0xffffff,...textures,metalness:0,roughness:.72,bumpScale:.009,clearcoat:.15,clearcoatRoughness:.38,envMapIntensity:.8});
+  const fur=new THREE.MeshPhysicalMaterial({color:0xffffff,...textures,metalness:0,roughness:.78,bumpScale:.014,clearcoat:.08,clearcoatRoughness:.38,envMapIntensity:.65});
   const muzzleMaterial=new THREE.MeshPhysicalMaterial({color:0xe6ddc9,roughness:.69,metalness:0,bumpMap:textures.bumpMap,bumpScale:.004,clearcoat:.12});
   const noseMaterial=new THREE.MeshPhysicalMaterial({color:0x382c29,roughness:.3,clearcoat:.3});
   const eyeMaterial=new THREE.MeshPhysicalMaterial({color:0x080c10,roughness:.065,metalness:0,clearcoat:1,clearcoatRoughness:.03,envMapIntensity:1.4});
-  const lidMaterial=new THREE.MeshStandardMaterial({color:0x665f5c,roughness:.65});
+  const lidMaterial=new THREE.MeshStandardMaterial({color:0x777168,roughness:.73});
   const mouthMaterial=new THREE.MeshStandardMaterial({color:0x473731,roughness:.7});
   const sphere=new THREE.SphereGeometry(1,highDetail?32:20,highDetail?24:14);
   const body=new THREE.SkinnedMesh(createSkinGeometry(highDetail),fur);
@@ -196,6 +249,8 @@ export function createLumaProxy({scale=.62,shadows=true,highDetail=true}={}) {
   core.name='Luma spine';head.name='Luma head';tail.name='Luma rear propulsion';
   head.position.set(0,1.10,.65);tail.position.set(0,.30,-1.15);
   core.add(head,tail);body.add(core);visual.add(body);body.bind(new THREE.Skeleton([core,head,tail]));
+  const furLayers=createShortFur(body,textures,visual,highDetail);
+  root.userData.furLayers=furLayers.length;
 
   const face=new THREE.Group();face.name='Luma expression';head.add(face);
   const facePos=(x,y,z)=>[x,y-1.10,z-.65];
@@ -213,14 +268,14 @@ export function createLumaProxy({scale=.62,shadows=true,highDetail=true}={}) {
 
   const eyes=[];
   for(const side of [-1,1]) {
-    const socket=new THREE.Group();socket.position.set(...facePos(side*.30,1.61,1.50));socket.rotation.y=side*.36;face.add(socket);
-    addMesh(socket,'Luma eyelid rim',sphere,lidMaterial,[0,0,0],[.148,.167,.087]);
+    const socket=new THREE.Group();socket.position.set(...facePos(side*.305,1.59,1.485));socket.rotation.y=side*.36;face.add(socket);
+    addMesh(socket,'Luma eyelid rim',sphere,lidMaterial,[0,0,0],[.132,.146,.047]);
     const blink=new THREE.Group();socket.add(blink);
-    const eye=addMesh(blink,side<0?'Luma left eye':'Luma right eye',sphere,eyeMaterial,[0,0,.032],[.128,.147,.087]);
+    const eye=addMesh(blink,side<0?'Luma left eye':'Luma right eye',sphere,eyeMaterial,[0,0,.015],[.114,.128,.053]);
     // Small reflected sky patches move and close with the cornea.
     const glintMaterial=new THREE.MeshBasicMaterial({color:0xf1f5f0,transparent:true,opacity:.82});
-    addMesh(blink,'Luma corneal reflection',sphere,glintMaterial,[-.041,.061,.109],[.033,.021,.009]).castShadow=false;
-    addMesh(blink,'Luma small eye reflection',sphere,glintMaterial,[.052,-.042,.110],[.012,.010,.005]).castShadow=false;
+    addMesh(blink,'Luma corneal reflection',sphere,glintMaterial,[-.036,.050,.063],[.019,.013,.004]).castShadow=false;
+    addMesh(blink,'Luma small eye reflection',sphere,glintMaterial,[.044,-.035,.064],[.007,.006,.003]).castShadow=false;
     eyes.push(blink);eye.userData.cornea=true;
   }
 
@@ -273,8 +328,13 @@ export function createLumaProxy({scale=.62,shadows=true,highDetail=true}={}) {
     animation.wet+=((swimming?1:0)-animation.wet)*(1-Math.exp(-(swimming?3.2:.075)*dt));
     const t=animation.time,s=animation.swim,m=clamp((Number(state.speed)||0)/4.25,0,1.5),wet=animation.wet;
     const wave=Math.sin(t*(3.2+m*4)),breath=Math.sin(t*1.65)*.009;
-    fur.roughness=.72-wet*.30;fur.clearcoat=.15+wet*.39;fur.bumpScale=.009-wet*.004;
+    fur.roughness=.78-wet*.34;fur.clearcoat=.08+wet*.43;fur.bumpScale=.014-wet*.008;
     muzzleMaterial.roughness=.69-wet*.27;muzzleMaterial.clearcoat=.12+wet*.30;
+    for(const layer of furLayers){
+      layer.lengthUniform.value=(.006-wet*.0048)*layer.fraction;
+      layer.material.roughness=.86-wet*.32;
+      layer.material.alphaTest=.16+layer.fraction*.74+wet*.055;
+    }
     head.position.set(0,1.10-s*.57,.65+s*.08);
     head.rotation.set(s*.12,Math.sin(t*.57)*.026*(1-m*.4),animation.mood==='curious'?Math.sin(t*.63)*.038*(1-s):0);
     tail.rotation.y=wave*s*(.05+m*.18);tail.rotation.z=wave*s*.045;

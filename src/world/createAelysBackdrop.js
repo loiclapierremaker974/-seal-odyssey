@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 const UP=new THREE.Vector3(0,1,0), ONE=new THREE.Vector3(1,1,1);
-const STONE=new THREE.Color('#c7bfaa'), ROCK=new THREE.Color('#afa99a'), MOSS=new THREE.Color('#5a7050');
+const STONE=new THREE.Color('#c5bfaf'), ROCK=new THREE.Color('#adaca0'), MOSS=new THREE.Color('#4e6242');
 function hash(x,y,z,seed=0){const n=Math.sin(x*12.9898+y*78.233+z*37.719+seed*17.123)*43758.5453;return n-Math.floor(n);}
 function bucket(){return {positions:[],normals:[],colors:[],indices:[]};}
 function transform(x,y,z,angle=0){return new THREE.Matrix4().compose(new THREE.Vector3(x,y,z),new THREE.Quaternion().setFromAxisAngle(UP,angle),ONE);}
@@ -56,8 +56,10 @@ function limestoneSurface(highDetail){
 }
 
 function cliffPoint(cliff,angle,t){
-  const outline=.92+Math.sin(angle*3+cliff.seed)*.17+Math.cos(angle*7-cliff.seed*.7)*.09+Math.sin(angle*11+cliff.seed*2.1)*.035;
-  const profile=.84+Math.sin(t*Math.PI*.88)*.20+Math.pow(1-t,4)*.22+Math.sin(t*19+cliff.seed)*.06+Math.sin(t*53+cliff.seed*2)*.025;
+  const joint=Math.pow(Math.max(0,Math.cos(angle*9+cliff.seed)),12);
+  const outline=.94+Math.sin(angle*3+cliff.seed)*.16+Math.cos(angle*7-cliff.seed*.7)*.085+Math.sin(angle*17+cliff.seed)*.025-joint*.085;
+  const shelf=.075*Math.tanh(Math.sin(t*Math.PI*9+cliff.seed)*4);
+  const profile=.80+Math.sin(t*Math.PI*.88)*.18+Math.pow(1-t,4)*.28+shelf+Math.sin(t*19+cliff.seed)*.035;
   const radius=cliff.radius*outline*profile;
   return new THREE.Vector3(
     cliff.x+Math.cos(angle)*radius*1.18+Math.sin(t*2.1+cliff.seed)*t*.75,
@@ -65,14 +67,17 @@ function cliffPoint(cliff,angle,t){
     cliff.z+Math.sin(angle)*radius*.86+Math.cos(t*1.7+cliff.seed)*t*.55);
 }
 function cliffGeometry(cliff,highDetail){
-  const radial=highDetail?28:18,bands=highDetail?15:8,p=[],c=[],idx=[];
+  const radial=highDetail?48:24,bands=highDetail?36:18,p=[],c=[],idx=[];
   for(let row=0;row<=bands;row++){
-    const t=row/bands,bandTone=.91+Math.sin(row*2.73+cliff.seed)*.065;
+    const t=row/bands;
     for(let i=0;i<radial;i++){
       const angle=i*Math.PI*2/radial,point=cliffPoint(cliff,angle,t);p.push(point.x,point.y,point.z);
-      const damp=THREE.MathUtils.lerp(.59,1,THREE.MathUtils.smoothstep(point.y,-.5,4.2));
-      const shade=bandTone*damp*(.94+hash(point.x*.7,point.y*.3,point.z*.7,cliff.seed)*.09);
-      c.push(ROCK.r*shade,ROCK.g*shade,ROCK.b*shade);
+      const damp=THREE.MathUtils.lerp(.52,1,THREE.MathUtils.smoothstep(point.y,-.6,3.2));
+      const stratum=.91+Math.sin(point.y*2.4+cliff.seed)*.12+Math.sin(point.y*7.2+angle*.35)*.055;
+      const shade=stratum*damp*(.86+hash(point.x*.65,point.y*.2,point.z*.65,cliff.seed)*.16);
+      const seam=Math.pow(.5+.5*Math.cos(angle*12+cliff.seed),10);
+      const moss=THREE.MathUtils.clamp(THREE.MathUtils.smoothstep(t,.38,.98)*seam*.82,0,.72);
+      c.push(THREE.MathUtils.lerp(ROCK.r*shade,MOSS.r*.68,moss),THREE.MathUtils.lerp(ROCK.g*shade,MOSS.g*.76,moss),THREE.MathUtils.lerp(ROCK.b*shade,MOSS.b*.64,moss));
     }
   }
   for(let row=0;row<bands;row++)for(let i=0;i<radial;i++){
@@ -94,6 +99,52 @@ function cliffGeometry(cliff,highDetail){
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));
   g.setAttribute('color',new THREE.Float32BufferAttribute(c,3));g.setIndex(idx);g.computeVertexNormals();return g;
 }
+
+/** Intersect the rendered Float32 side triangles at the player's depth. */
+function cliffBlocker(cliff,geometry,radial,bands){
+  const p=geometry.getAttribute('position').array,index=geometry.getIndex().array;
+  const segments=[],outline=[],used=new Uint8Array(radial*bands*2),limit=radial*bands*6;
+  return {
+    x:cliff.x,z:cliff.z,top:cliff.height+.8,bottom:-5.3,
+    rx:cliff.radius*1.18,rz:cliff.radius*.86,broadRadius:cliff.radius*2.1,
+    outlineAtHeight(y){
+      segments.length=0;outline.length=0;
+      for(let f=0;f<limit;f+=3){
+        let hits=0,ax=0,az=0,bx=0,bz=0;
+        for(let e=0;e<3;e++){
+          const a=index[f+e]*3,b=index[f+(e+1)%3]*3,ya=p[a+1],yb=p[b+1];
+          if(!((ya<=y&&yb>y)||(yb<=y&&ya>y)))continue;
+          const t=(y-ya)/(yb-ya),x=p[a]+(p[b]-p[a])*t,z=p[a+2]+(p[b+2]-p[a+2])*t;
+          if(hits++===0){ax=x;az=z;}else{bx=x;bz=z;}
+        }
+        if(hits===2&&(ax-bx)**2+(az-bz)**2>1e-12)segments.push(ax,az,bx,bz);
+      }
+      const count=segments.length/4;
+      if(!count)return outline;
+      used.fill(0,0,count);used[0]=1;outline.push(segments[0],segments[1]);
+      let x=segments[2],z=segments[3];
+      for(let step=1;step<=count;step++){
+        outline.push(x,z);
+        let found=-1,reverse=false;
+        for(let i=1;i<count;i++){
+          if(used[i])continue;
+          const o=i*4;
+          if((segments[o]-x)**2+(segments[o+1]-z)**2<1e-8){found=i;break;}
+          if((segments[o+2]-x)**2+(segments[o+3]-z)**2<1e-8){found=i;reverse=true;break;}
+        }
+        if(found<0)break;
+        used[found]=1;const o=found*4+(reverse?0:2);x=segments[o];z=segments[o+1];
+      }
+      let area=0;
+      for(let i=0,j=outline.length-2;i<outline.length;j=i,i+=2)area+=outline[j]*outline[i+1]-outline[i]*outline[j+1];
+      if(area<0)for(let i=0,j=outline.length-2;i<j;i+=2,j-=2){
+        const x=outline[i],z=outline[i+1];outline[i]=outline[j];outline[i+1]=outline[j+1];outline[j]=x;outline[j+1]=z;
+      }
+      return outline;
+    }
+  };
+}
+
 function stoneBlock(width,height,depth,seed){
   const g=new THREE.BoxGeometry(width,height,depth),p=g.getAttribute('position'),amount=Math.min(width,height,depth)*.055;
   for(let i=0;i<p.count;i++){
@@ -196,13 +247,15 @@ export function createAelysBackdrop({highDetail=true}={}){
   const group=new THREE.Group();group.name='Aelys — falaises et ruines côtières';
   const geology=bucket(),masonry=bucket(),vegetation=bucket(),identity=new THREE.Matrix4();
   const cliffs=[
-    {x:-31,z:-19,radius:7.5,height:17,seed:2.1},{x:-36,z:-7,radius:5.2,height:11,seed:4.9},
+    {x:-31,z:-19,radius:7.5,height:12.8,seed:2.1},{x:-36,z:-7,radius:5.2,height:8.4,seed:4.9},
     {x:-20,z:-35,radius:6,height:18.4,seed:1.1},{x:-6,z:-36,radius:7.4,height:13.5,seed:3.9},
     {x:12,z:-39,radius:7,height:18.7,seed:6.1},{x:29,z:-25,radius:7.1,height:15.2,seed:2.6},
     {x:36,z:-11,radius:5.3,height:10.5,seed:5.4}
   ];
   for(const cliff of cliffs){
-    append(geology,cliffGeometry(cliff,highDetail),identity,ROCK);
+    const cliffMesh=cliffGeometry(cliff,highDetail);
+    cliff.blocker=cliffBlocker(cliff,cliffMesh,highDetail?48:24,highDetail?36:18);
+    append(geology,cliffMesh,identity,ROCK);
     for(let i=0;i<(highDetail?9:5);i++){
       const a=i*2.399963+cliff.seed,offset=cliff.radius*(.12+hash(i,1,0,cliff.seed)*.32);
       append(vegetation,mossPatch(cliff.x+Math.cos(a)*offset,cliff.height+.055,cliff.z+Math.sin(a)*offset,.8+hash(i,2,0,cliff.seed)*.9,cliff.seed+i,highDetail),identity,MOSS);
@@ -239,22 +292,7 @@ export function createAelysBackdrop({highDetail=true}={}){
     mesh.name='Cascade côtière';mesh.renderOrder=1;group.add(mesh);
   }
   group.userData.kind='aelys-backdrop';group.userData.isProcedural=true;
-  group.userData.blockers=cliffs.map(cliff=>{
-    const radial=highDetail?28:18,outline=new Float32Array(radial*2);
-    return {
-      x:cliff.x,z:cliff.z,rx:cliff.radius*1.18,rz:cliff.radius*.86,top:cliff.height+.8,bottom:-5.3,
-      broadRadius:cliff.radius*1.9,
-      outlineAtHeight(y){
-        for(let i=0;i<radial;i++){
-          const angle=i*Math.PI*2/radial;
-          const top=cliff.height+Math.sin(angle*2+cliff.seed)*.55+Math.cos(angle*5)*.25;
-          const t=THREE.MathUtils.clamp((y+5.3)/(top+5.3),0,1),point=cliffPoint(cliff,angle,t);
-          outline[i*2]=point.x;outline[i*2+1]=point.z;
-        }
-        return outline;
-      }
-    };
-  });
+  group.userData.blockers=cliffs.map(cliff=>cliff.blocker);
   group.userData.update=time=>{if(Number.isFinite(time))fallsMaterial.uniforms.uTime.value=time;};
   return group;
 }
