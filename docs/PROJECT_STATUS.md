@@ -2,6 +2,12 @@
 
 Updated: 2026-10-07
 
+## Fixed-camera encounters (0.5.0)
+
+Three entry-triggered current encounters add a lateral orthographic battle view to free exploration. Six actions use encounter-only energy, cooldowns, visible intentions and observation/defence combos. Shore, lagoon and ruins use distinct procedural scenery. Victory means appeasement, records a memory and improves trust once. Retreat/defeat return to the same world position without damaging exploration vitals. The existing local-save schema persists memories, including resolved encounters.
+
+This is an original first combat slice. It does not adopt another game's creatures or art. The unstable-current figures are configurable prototype opponents, not a finalized species canon. A fixed 2D play plane is rendered with the existing Three.js engine; future encounter types and production art remain work to do.
+
 ## Development and reference
 
 Repository: `loiclapierremaker974/-seal-odyssey`.

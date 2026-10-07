@@ -2,6 +2,17 @@
 
 Les changements notables de cette reprise locale sont consignés ici. Le format suit l'esprit de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et les versions applicatives suivent le versionnage sémantique quand il devient pertinent.
 
+## [0.5.0] - 2026-10-07
+
+### Ajouté
+
+- Rencontres de courants instables pendant l’exploration, avec arènes au cadrage latéral fixe sur le rivage, dans la lagune et parmi les ruines.
+- Six gestes tactiques : onde rapide, onde puissante, protection, esquive, observation et réconfort ; énergie de rencontre, délais de récupération, intentions adverses et enchaînements.
+- Animation du phoque et effets de courant propres aux gestes ; interface tactile et clavier avec barres de sérénité et d’agitation.
+- Retour à la position d’exploration après apaisement, retraite ou pause nécessaire ; souvenir des courants apaisés dans la sauvegarde de Luma, sans modifier sa santé ni son oxygène.
+
+Les adversaires sont des manifestations de courant proposées pour ce prototype ; leur forme ne fixe aucune nouvelle espèce du canon. Le cadrage est en 2D avec des personnages et décors procéduraux rendus par Three.js.
+
 ## [0.4.0] - 2026-10-07
 
 ### Ajouté

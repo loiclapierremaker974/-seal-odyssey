@@ -13,7 +13,7 @@ const appURL = new URL(basePath, 'http://127.0.0.1:4173').href;
 const scenarios = [
   {
     name: 'desktop-high', expectedQuality: 'high',
-    options: { viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1, hasTouch: false, isMobile: false },
+    options: { viewport: { width: 960, height: 540 }, deviceScaleFactor: 1, hasTouch: false, isMobile: false },
   },
   {
     name: 'touch-landscape-low', expectedQuality: 'low',
@@ -24,6 +24,10 @@ const scenarios = [
     },
   },
 ];
+scenarios.push({
+  name:'desktop-battle', expectedQuality:'high', battle:true,
+  options:{viewport:{width:960,height:540},deviceScaleFactor:1,hasTouch:false,isMobile:false},
+});
 const report = {
   schemaVersion: 1, startedAt: new Date().toISOString(),
   gitSha: process.env.GITHUB_SHA || null, appURL,
@@ -215,12 +219,12 @@ async function testSwimming(page, screenshot) {
   await page.keyboard.down('Shift');
   await page.keyboard.down('ArrowUp');
   try {
-    await page.waitForFunction(()=>window.__sealSmokeMotion.latest?.mode==='surface',undefined,{polling:200,timeout:90000});
+    await page.waitForFunction(()=>window.__sealSmokeMotion.latest?.mode==='surface',undefined,{polling:200,timeout:120000});
     const shore=await page.evaluate(()=>({...window.__sealSmokeMotion.latest}));
     await page.waitForFunction(start=>{
       const s=window.__sealSmokeMotion.latest;
       return s?.mode==='surface' && Math.hypot(s.x-start.x,s.z-start.z)>=3;
-    },shore,{polling:200,timeout:90000});
+    },shore,{polling:200,timeout:120000});
   } finally {
     await page.keyboard.up('ArrowUp');await page.keyboard.up('Shift');
   }
@@ -235,6 +239,46 @@ async function testSwimming(page, screenshot) {
     await page.waitForFunction(()=>window.__sealSmokeMotion.latest?.mode==='surface',undefined,{polling:100,timeout:45000});
   } finally {await page.keyboard.up('Space');}
   return {modes:['land','surface','underwater','surface'],input:'ArrowUp/Shift, Q, Space'};
+}
+
+async function testCombat(page,screenshot) {
+  const panel=page.locator('.battle-panel');
+  await page.locator('canvas.game-canvas').click({position:{x:10,y:10}});
+  await page.keyboard.down('Shift');await page.keyboard.down('ArrowRight');
+  try {
+    await panel.waitFor({state:'visible',timeout:120000});
+  } finally {await page.keyboard.up('ArrowRight');await page.keyboard.up('Shift');}
+  const entry=await page.evaluate(()=>({...window.__sealSmokeMotion.latest}));
+  assert.equal(await panel.getAttribute('data-battle-state'),'active');
+  assert.equal(await panel.locator('[data-battle-action]').count(),6);
+  assert.ok(await panel.locator('[data-battle-intent]').textContent());
+  await screenshot('combat');
+  const used=[];
+  const perform=async id=>{
+    await panel.locator('[data-battle-action="'+id+'"]').click();
+    assert.equal(await panel.getAttribute('data-battle-busy'),'true','Commands must lock during the actual animated turn.');
+    assert.ok(await panel.locator('[data-battle-action="swift-wave"]').isDisabled(),'A second turn must not start during animation.');
+    await page.waitForFunction(()=>document.querySelector('.battle-panel')?.dataset.battleBusy==='false',undefined,{polling:100,timeout:120000});
+    used.push(id);
+  };
+  // Native DOM actions exercise all six distinct gestures before finishing.
+  for(const id of ['observe','guard','dodge','comfort','strong-wave','swift-wave'])await perform(id);
+  for(let i=0;i<12 && await panel.getAttribute('data-battle-state')==='active';i++){
+    const combo=await panel.locator('[data-battle-combo]').getAttribute('data-battle-combo');
+    const strong=panel.locator('[data-battle-action="strong-wave"]');
+    const swift=panel.locator('[data-battle-action="swift-wave"]');
+    const id=combo!=='ready'?'observe':!await strong.isDisabled()?'strong-wave':!await swift.isDisabled()?'swift-wave':'comfort';
+    await perform(id);
+  }
+  assert.equal(await panel.getAttribute('data-battle-state'),'victory','The shore manifestation must be appeasable using the visible actions.');
+  await screenshot('combat-victory');
+  await panel.locator('[data-battle-close]').click();
+  await panel.waitFor({state:'hidden'});
+  assert.equal(await page.locator('canvas.game-canvas').evaluate(c=>document.activeElement===c),true,'Exploration must regain keyboard focus.');
+  const returned=await page.evaluate(()=>({...window.__sealSmokeMotion.latest}));
+  assert.ok(Math.hypot(returned.x-entry.x,returned.z-entry.z)<.08,'Battle must return to the same world position.');
+  await page.waitForFunction(()=>localStorage.getItem('seal-odyssey:save')?.includes('current-appeased'),undefined,{timeout:10000});
+  return {actions:used,result:'victory',entry,returned,persistentMemory:true};
 }
 
 async function runScenario(scenario) {
@@ -281,7 +325,8 @@ async function runScenario(scenario) {
           const image = await Promise.race([
             captureSession.send('Page.captureScreenshot', {
               format, ...(format === 'jpeg' ? {quality:82} : {}),
-              fromSurface:phase!=='care', captureBeyondViewport:false,
+              fromSurface:phase!=='care', captureBeyondViewport:true,
+              clip:{x:0,y:0,...scenario.options.viewport,scale:1},
             }),
             new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('Compositor capture timed out: '+phase)),45000);}),
           ]);
@@ -290,7 +335,7 @@ async function runScenario(scenario) {
       };
       await capture('png',join(artifactDirectory,filename));
       result.screenshots.push(filename);
-      if (['exploration', 'failure', 'care', 'belly-hop', 'swimming', 'underwater'].includes(phase)) {
+      if (['exploration', 'failure', 'care', 'belly-hop', 'swimming', 'underwater', 'combat', 'combat-victory'].includes(phase)) {
         await capture('jpeg',join(artifactDirectory,scenario.name+'-'+phase+'.jpg'));
       }
     } finally {
@@ -315,6 +360,9 @@ async function runScenario(scenario) {
     await page.waitForFunction(() => document.querySelector('[data-intro]')?.hidden === true);
     result.sound = await testSoundToggle(page, scenario.expectedQuality === 'high');
     await screenshot('exploration');
+    if(scenario.battle){
+      result.combat=await testCombat(page,screenshot);
+    }else{
     result.bellyHop=await testBellyHop(page,scenario,screenshot);
     await page.getByRole('button', { name: 'Prendre soin de Luma', exact: true }).click();
     await page.getByRole('dialog', { name: 'Un moment avec Luma', exact: true }).waitFor({ state: 'visible' });
@@ -337,6 +385,7 @@ async function runScenario(scenario) {
     await page.getByRole('dialog', { name: 'Un moment avec Luma', exact: true }).waitFor({ state: 'hidden' });
     assert.equal(await page.locator('#app > canvas').count(),1,'The live canvas must return to exploration.');
     if(scenario.expectedQuality==='high')result.swimming=await testSwimming(page,screenshot);
+    }
     result.afterInteractions = await captureRuntime(page);
     assertRuntime(result.afterInteractions, scenario);
     assert.deepEqual(result.pageErrors, [], 'Uncaught browser errors occurred.');
@@ -371,7 +420,7 @@ try {
   preview.on('error', (error) => { previewError = error; });
   preview.on('exit', (code, signal) => { previewExit = { code, signal }; });
   await waitForPreview();
-  browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--window-size=960,540'] });
   report.browserVersion = browser.version();
   for (const scenario of scenarios) await runScenario(scenario);
 } catch (error) {

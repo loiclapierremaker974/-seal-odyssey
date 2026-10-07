@@ -1,4 +1,12 @@
 import './styles.css';
+import './ui/battle.css';
+
+import { BattleArena } from './combat/BattleArena.js';
+import { CombatSystem } from './combat/CombatSystem.js';
+import { ENCOUNTERS } from './combat/encounters.js';
+import { EncounterDirector } from './combat/EncounterDirector.js';
+import { BattlePanel } from './ui/BattlePanel.js';
+import { createEncounterMarkers } from './world/createEncounterMarkers.js';
 
 import { AqualysAudio } from './audio/AqualysAudio.js';
 import { CareSystem } from './care/CareSystem.js';
@@ -13,7 +21,7 @@ import { AelysScene } from './world/AelysScene.js';
 import { createLumaProxy } from './world/createLumaProxy.js';
 
 const APP_VERSION =
-  typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.4.0';
+  typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.5.0';
 const BUILD_ID =
   typeof __BUILD_ID__ !== 'undefined'
     ? __BUILD_ID__
@@ -60,6 +68,15 @@ function boot() {
   let diveRoute = 'dive';
   let started = false;
   let pendingCare = false;
+  let careActive = false;
+  let battle = null;
+  let battleArena = null;
+  let battleBusy = false;
+  let activeEncounter = null;
+  let battleWidth = 0, battleHeight = 0;
+  const encounterDirector = new EncounterDirector({encounters:ENCOUNTERS,
+    resolvedIds:gameState.luma.memory.events.filter(e=>e?.type==='current-appeased').map(e=>e.encounterId),
+  });
   let motionTimer = 0;
   let saveTimer = 0;
   let lastObjective = '';
@@ -143,6 +160,7 @@ function boot() {
   const carePanel = new CarePanel({
     mount: root,
     onClose: () => {
+      careActive = false;
       hud.setCareMode(false);
       root.prepend(canvas);
       canvas.tabIndex = 0;
@@ -167,11 +185,13 @@ function boot() {
   });
 
   function openCare() {
+    if(battle)return;
     if (controller?.state.mode === 'land' && controller.state.jumpStage !== 'idle') {
       pendingCare = true;
       return;
     }
     pendingCare = false;
+    careActive = true;
     controller?.setEnabled(false);
     controller?.setCameraFocus({});
     hud.setCareMode(true);
@@ -184,10 +204,90 @@ function boot() {
     world.setContainer(surface);
   }
 
+  const battlePanel = new BattlePanel({
+    mount:root,
+    onAction:actionId=>{
+      if(!battle||battleBusy)return;
+      presentCombatResult(battle.act(actionId));
+    },
+    onRetreat:()=>{
+      if(!battle||battleBusy)return;
+      presentCombatResult(battle.retreat());
+    },
+    onClose:closeCombat,
+  });
+
+  function openCombat(encounter) {
+    if(!started||battle||careActive||!controller.enabled||controller.state.jumpStage!=='idle')return;
+    activeEncounter=encounter;
+    encounterDirector.suppressUntilExit(encounter.id);
+    pendingCare=false;
+    controller.setEnabled(false);input.reset();
+    hud.setVisible(false);
+    canvas.tabIndex=-1;canvas.style.pointerEvents='none';
+    canvas.setAttribute('aria-label','Arène de la rencontre : '+encounter.name);
+    battle=new CombatSystem({encounterId:encounter.id,lumaTrust:gameState.lumaTrust});
+    battleArena??=new BattleArena({renderer:world.renderer,lowPower:world.lowPower,environment:world.scene.environment});
+    battleArena.open(encounter);
+    battleWidth=root.clientWidth;battleHeight=root.clientHeight;
+    battleArena.resize(battleWidth,battleHeight);
+    battlePanel.open({encounter,state:battle.getState()});
+    audio.playCue('echo');
+  }
+
+  function presentCombatResult(result) {
+    if(!result.accepted){
+      battlePanel.setState(battle.getState(),{feedback:'Cette action est indisponible pour ce tour.'});
+      return;
+    }
+    battleBusy=true;
+    const feedback=result.events.map(e=>e.message||e.text||'').filter(Boolean).slice(-2).join(' ');
+    battlePanel.setState(result.state,{busy:true,feedback,events:result.events});
+    const action=result.events.find(e=>e.actor==='luma'&&e.actionId)?.actionId;
+    audio.playCue(['swift-wave','strong-wave'].includes(action)?'splash':'care');
+    battleArena.play(result.events,()=>{
+      if(!battle)return;
+      battleBusy=false;
+      if(result.state.status==='victory')rememberEncounter();
+      battlePanel.setState(result.state,{busy:false,feedback,events:result.events});
+    });
+  }
+
+  function rememberEncounter() {
+    const data=gameState.luma;
+    if(data.memory.events.some(e=>e?.type==='current-appeased'&&e.encounterId===activeEncounter.id))return;
+    data.memory.events.push({type:'current-appeased',encounterId:activeEncounter.id});
+    data.relationships.guardianTrust=Math.min(100,data.relationships.guardianTrust+(activeEncounter.reward?.trust??3));
+    data.mood.confidence=Math.min(100,data.mood.confidence+(activeEncounter.reward?.confidence??4));
+    data.mood.state='determined';
+    gameState.updateLuma(data);
+    encounterDirector.markResolved(activeEncounter.id);
+    encounterMarkers.userData.setResolved(encounterDirector.resolved);
+    audio.playCue('site');
+  }
+
+  function closeCombat() {
+    if(!battle||battleBusy||battle.getState().status==='active')return;
+    const status=battle.getState().status;
+    battlePanel.close();battleArena.close();
+    battle=null;activeEncounter=null;input.reset();
+    canvas.tabIndex=0;canvas.style.pointerEvents='';
+    canvas.setAttribute('aria-label',"Vue 3D du Rivage d'Aelys");
+    hud.setVisible(true);controller.setEnabled(started);
+    canvas.focus({preventScroll:true});
+    syncProgressUI();
+    hud.showToast(status==='victory'?'Le courant est apaisé. Luma garde le souvenir de votre complicité.':
+      status==='defeat'?'Luma reprend son souffle. Vous pouvez préparer une autre approche.':
+      'Vous reprenez l’exploration en sécurité.',{tone:status==='victory'?'success':'info',duration:4000});
+  }
+
   world = new AelysScene({ canvas, container: root });
   const luma = createLumaProxy({ highDetail: !world.lowPower });
   world.getSpawnPosition(luma.position);
   world.add(luma);
+  const encounterMarkers=createEncounterMarkers(ENCOUNTERS,{sampleEnvironment:p=>world.getEnvironmentAt(p)});
+  encounterMarkers.userData.setResolved(encounterDirector.resolved);
+  world.scene.add(encounterMarkers);
   world.setProgress({
     echoIds: gameState.discoveredEchoIds,
     siteRestored: gameState.siteActivated,
@@ -226,7 +326,9 @@ function boot() {
   }
 
   function handleWorldAction(result) {
+    const encounter=encounterDirector.getNearby(luma.position);
     if (!result.success) {
+      if(encounter){openCombat(encounter);return;}
       const messages = {
         'out-of-range': "Aucun Echo ou Site Ancien n'est assez proche.",
         'too-far': "Approchez-vous encore un peu avant d'interagir.",
@@ -267,6 +369,7 @@ function boot() {
       });
     }
     syncProgressUI();
+    if(encounter)openCombat(encounter);
   }
 
   function scheduleSave() {
@@ -329,6 +432,8 @@ function boot() {
   function updateContextPrompt(elapsed) {
     if (elapsed - lastPromptCheck < 0.18 || !controller.enabled) return;
     lastPromptCheck = elapsed;
+    const encounter=encounterDirector.getNearby(luma.position);
+    if(encounter){setObjective('Rencontre : '+encounter.name);return;}
     const interaction = world.findInteraction(luma.position);
     if (interaction) {
       setObjective(interaction.label);
@@ -358,6 +463,16 @@ function boot() {
   const frame = (time) => {
     const delta = Math.min((time - previousTime) / 1000, 0.05);
     previousTime = time;
+    if(battle){
+      const width=root.clientWidth,height=root.clientHeight;
+      if(width!==battleWidth||height!==battleHeight){
+        battleWidth=width;battleHeight=height;battleArena.resize(width,height);
+      }
+      battleArena.update(delta);battlePanel.setFloatingNumbers?.(battleArena.floats);battleArena.render();
+      soundState.speed=0;audio.update(soundState,delta);
+      animationFrame=requestAnimationFrame(frame);
+      return;
+    }
     elapsed += delta;
     controller.update(delta);
     motionTimer += delta;
@@ -366,6 +481,10 @@ function boot() {
       emitMotionState(controller.state);
     }
     if (pendingCare && controller.state.jumpStage === 'idle') openCare();
+    const encounter=encounterDirector.update(luma.position,{enabled:started&&controller.enabled,
+      airborne:controller.state.airborne,jumpStage:controller.state.jumpStage});
+    if(encounter)openCombat(encounter);
+    encounterMarkers.userData.update(elapsed);
     world.update(delta, elapsed);
     world.updateLumaMotion(luma.position, controller.state, delta, controller.enabled);
     // Reuse a small payload: no audio nodes or buffers are allocated per frame.
@@ -373,7 +492,7 @@ function boot() {
     soundState.speed = controller.enabled ? controller.state.normalizedSpeed : 0;
     audio.update(soundState, delta);
     updateContextPrompt(elapsed);
-    world.render();
+    if(battle){battleArena.update(delta);battleArena.render();}else world.render();
     animationFrame = requestAnimationFrame(frame);
   };
   animationFrame = requestAnimationFrame(frame);
@@ -399,6 +518,7 @@ function boot() {
     document.removeEventListener('visibilitychange', persistWhenHidden);
     questSystem.dispose();
     carePanel.destroy();
+    battlePanel.destroy();battleArena?.dispose();
     hud.destroy();
     controller.dispose({ disposeInput: true });
     audio.dispose();

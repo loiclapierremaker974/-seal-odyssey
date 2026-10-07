@@ -5,7 +5,7 @@ Cette arborescence est une reprise locale propre de **Seal Odyssey** : une verti
 [![Test and deploy Seal Odyssey](https://github.com/loiclapierremaker974/-seal-odyssey/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/loiclapierremaker974/-seal-odyssey/actions/workflows/deploy-pages.yml)
 
 > [!IMPORTANT]
-> Le dossier maître décrit une bêta avancée et cite un ancien dépôt GitHub, mais ni les sources de cette bêta, ni son archive ZIP, ni un dépôt exploitable n'étaient présents dans la transmission du 2 octobre 2026. Cette fondation ne prétend donc pas être cette bêta. La version 0.4.0 ajoute une progression sur le ventre, des petits bonds avec anticipation et réception, une nage avec flexion du corps, des effets de sable et d’eau et une surface qui réagit aux impacts et porte Luma. Le pelage et les falaises reprennent la fiche visible du 6 octobre. Les modèles restent procéduraux et la qualité de l’illustration reste une cible artistique.
+> Le dossier maître décrit une bêta avancée et cite un ancien dépôt GitHub, mais ni les sources de cette bêta, ni son archive ZIP, ni un dépôt exploitable n'étaient présents dans la transmission du 2 octobre 2026. Cette fondation ne prétend donc pas être cette bêta. La version 0.5.0 ajoute trois rencontres tactiques au cadrage fixe et six gestes de combat centrés sur l’apaisement. La version 0.4.0 ajoute une progression sur le ventre, des petits bonds avec anticipation et réception, une nage avec flexion du corps, des effets de sable et d’eau et une surface qui réagit aux impacts et porte Luma. Le pelage et les falaises reprennent la fiche visible du 6 octobre. Les modèles restent procéduraux et la qualité de l’illustration reste une cible artistique.
 
 Les dossiers de référence transmis par le créateur restent des sources de travail privées. Ils ne sont pas intégrés comme assets de production : leur provenance et leur usage final doivent d'abord être confirmés. Les exécutables sans rapport avec le jeu ont été laissés intacts.
 
@@ -50,6 +50,12 @@ Le service worker est enregistré uniquement dans une build de production. Une i
 | Clavier | `Maj` | Sprinter |
 
 Les contrôles tactiles sont de vrais boutons accessibles au clavier. Les jauges d'oxygène et d'énergie, l'objectif, les trois Échos et l'identifiant de build sont exposés avec des rôles et libellés sémantiques.
+
+## Rencontres de courants
+
+Des signaux turquoise marquent trois zones de rencontre. Approcher celui du rivage, à droite du point de départ, ouvre une arène latérale à caméra fixe. Choisir un geste avec les six boutons ou les touches `1` à `6` ; `Échap` permet de se retirer. L’intention adverse annonce son prochain geste. Observer, protéger ou esquiver prépare des enchaînements, tandis que le réconfort aide Luma à reprendre son souffle. Le décor suit le lieu : rivage, lagune ou ruines.
+
+L’énergie de rencontre est distincte des jauges d’exploration. Les courants apaisés restent dans la mémoire sauvegardée de Luma. Une retraite ou une défaite ramène à la position d’entrée et permet une nouvelle approche après avoir quitté la zone. Les formes de courant de ce prototype ne constituent pas une nouvelle espèce définitive du canon.
 
 ## Architecture
 
