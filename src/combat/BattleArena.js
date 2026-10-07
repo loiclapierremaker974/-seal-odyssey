@@ -218,7 +218,9 @@ export class BattleArena {
       if(!event||['victory','defeat','retreat'].includes(event.type))continue;
       const duration=event.type==='action'?(ACTION_TIME[event.actionId]||.44):.12;
       if(time+duration>(terminal?2.45:3)||this._queue.length>=8)continue;
-      this._queue.push({event,duration,age:0,started:false,fired:false});time+=duration;
+      const defense=event.type==='action'&&event.actor==='opponent'&&event.actionId!=='gather'
+        ?list.find(e=>e?.actor==='luma'&&['dodge','guard'].includes(e.type)&&e.amount>0)?.type:null;
+      this._queue.push({event,duration,age:0,started:false,fired:false,defense});time+=duration;
     }
     if(terminal)this._queue.push({event:terminal,duration:.55,age:0,started:false,fired:false});
     this._complete=typeof onComplete==='function'?onComplete:null;
@@ -288,14 +290,21 @@ export class BattleArena {
     this.opponent.position.copy(this._opponentBase);this.opponent.position.y+=opponentBob;
     if(lumaAction){
       if(action==='dodge'){
-        this.luma.position.x-=envelope*.48;this.luma.position.y+=envelope*.16;
-        Object.assign(state,{airborne:progress>.1&&progress<.9,jumpHeight:envelope*.16,
-          jumpStage:'air',jumpPhase:progress});
+        // Prepare first; the actual evasive hop happens during the incoming wave.
+        if(event.type==='action')Object.assign(state,{jumpStage:'anticipation',jumpPhase:envelope*.4});
       }else if(action==='strong-wave'&&progress<.48){
         Object.assign(state,{jumpStage:'anticipation',jumpPhase:envelope*.8});
       }else if(action==='guard')Object.assign(state,{jumpStage:'anticipation',jumpPhase:envelope*.5});
       if(action==='swift-wave')this.luma.position.x+=envelope*.17;
       if(action==='strong-wave')this.luma.position.x+=envelope*.24;
+    }
+    if(entry?.defense==='dodge'){
+      const lift=clamp(progress/.22)*clamp((1-progress)/.14);
+      this.luma.position.x-=lift*.48;this.luma.position.y+=lift*.16;
+      Object.assign(state,{airborne:lift>.05,jumpHeight:lift*.16,jumpStage:'air',jumpPhase:progress});
+    }else if(entry?.defense==='guard'){
+      this._shieldLife=Math.max(this._shieldLife,.35);
+      Object.assign(state,{jumpStage:'anticipation',jumpPhase:.38});
     }
     this.luma.userData.update(Math.min(dt,.1),state);
     if(lumaAction){

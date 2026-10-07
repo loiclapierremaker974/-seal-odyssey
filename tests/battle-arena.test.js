@@ -80,3 +80,25 @@ test('arena disposal releases its resources once and retains the borrowed enviro
   assert.throws(()=>arena.open(ENCOUNTERS[0]),/disposed/);
   assert.equal(arena.scene.children.length,0);
 });
+
+test('evasion is visible while the incoming wave travels, without a late second hop',()=>{
+  const arena=new BattleArena({renderer:renderer(),lowPower:true});
+  arena.open(ENCOUNTERS[0]);
+  const combat=new CombatSystem(),result=combat.act('dodge');
+  assert.ok(result.events.some(e=>e.type==='dodge'&&e.amount>0));
+  arena.play(result.events);
+  let incoming=false,outcome=false;
+  for(let i=0;i<150&&arena.playing;i++){
+    arena.update(.01);
+    const entry=arena._current;
+    if(entry?.event.actor==='opponent'&&entry.event.type==='action'&&entry.age/entry.duration>.3&&entry.age/entry.duration<.7){
+      incoming=true;
+      assert.ok(arena.luma.position.x<arena._lumaBase.x-.3);
+      assert.ok(arena.luma.position.y>arena._lumaBase.y+.1);
+    }
+    if(entry?.event.type==='dodge'){
+      outcome=true;assert.equal(arena.luma.position.y,arena._lumaBase.y);
+    }
+  }
+  assert.ok(incoming&&outcome);arena.dispose();
+});
