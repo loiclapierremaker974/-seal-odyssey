@@ -269,6 +269,7 @@ async function runScenario(scenario) {
         await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
       }
       if(holdFrame)window.__sealSmokeFrames.pause();
+      else document.querySelector('canvas.game-canvas')?.getContext('webgl2')?.finish();
     },phase!=='care');
     try {
       // Capture the compositor's actual frozen frame directly. Playwright's
@@ -280,7 +281,7 @@ async function runScenario(scenario) {
           const image = await Promise.race([
             captureSession.send('Page.captureScreenshot', {
               format, ...(format === 'jpeg' ? {quality:82} : {}),
-              fromSurface:true, captureBeyondViewport:false,
+              fromSurface:phase!=='care', captureBeyondViewport:false,
             }),
             new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('Compositor capture timed out: '+phase)),45000);}),
           ]);
