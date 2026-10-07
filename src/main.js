@@ -261,6 +261,7 @@ function boot() {
     data.mood.confidence=Math.min(100,data.mood.confidence+(activeEncounter.reward?.confidence??4));
     data.mood.state='determined';
     gameState.updateLuma(data);
+    luma.userData.setMood?.(gameState.lumaMood.state);
     encounterDirector.markResolved(activeEncounter.id);
     encounterMarkers.userData.setResolved(encounterDirector.resolved);
     audio.playCue('site');
