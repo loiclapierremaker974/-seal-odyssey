@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { WaterResponse, sampleAelysMeshSurface } from './WaterResponse.js';
+import { WaterResponse, createAelysWaterGrid, sampleAelysGridSurface } from './WaterResponse.js';
 
 const WATER_RESPONSE_GLSL = `      uniform vec4 uImpacts[8];
       uniform float uResponseTime;
@@ -10,6 +10,7 @@ const WATER_RESPONSE_GLSL = `      uniform vec4 uImpacts[8];
           if(impact.w<=0.0 || age<0.0 || age>2.8)continue;
           vec2 radial=p-impact.xy;float distance=length(radial);
           float offset=distance-age*2.65,width=.45+age*.14;
+          if(abs(offset)>width*3.0 && distance>2.5)continue;
           float envelope=.078*impact.w*smoothstep(.04,.18,age)*exp(-age*1.35)*exp(-offset*offset/(width*width));
           float ring=envelope*sin(offset*4.8);
           float dent=-.115*impact.w*exp(-distance*distance/.75)*exp(-age*5.5);
@@ -61,9 +62,18 @@ export function createAelysWater({
   seabed.needsUpdate = true;
 
   const response = new WaterResponse({capacity:lowPower?4:8});
-  const segments = lowPower ? 160 : 240;
+  const segments = lowPower ? 72 : 120;
+  const innerSegments = lowPower ? 56 : 104;
+  const xGrid=createAelysWaterGrid(size,segments,innerSegments,-14,14);
+  const zGrid=createAelysWaterGrid(size,segments,innerSegments,-20,12);
   const geometry = new THREE.PlaneGeometry(size, size, segments, segments);
   geometry.rotateX(-Math.PI / 2);
+  const gridPositions=geometry.getAttribute('position');
+  for(let row=0;row<=segments;row++)for(let column=0;column<=segments;column++){
+    const i=row*(segments+1)+column;
+    gridPositions.setX(i,xGrid[column]);gridPositions.setZ(i,zGrid[row]);
+  }
+  gridPositions.needsUpdate=true;geometry.computeBoundingSphere();
   const material = new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
@@ -173,7 +183,7 @@ export function createAelysWater({
   water.position.y = waterLevel;
   water.renderOrder = 4;
   water.userData.response = response;
-  water.userData.surfaceHeight = (x,z,time) => waterLevel + sampleAelysMeshSurface(x,z,time,response,size,segments);
+  water.userData.surfaceHeight = (x,z,time) => waterLevel + sampleAelysGridSurface(x,z,time,response,xGrid,zGrid);
   return water;
 }
 

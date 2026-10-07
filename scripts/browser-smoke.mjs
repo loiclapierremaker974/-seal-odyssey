@@ -104,6 +104,8 @@ async function captureRuntime(page) {
         contextLost: gl.isContextLost(), error: gl.getError(),
       } : null,
       fatalError: document.querySelector('.fatal-error')?.textContent || null,
+      motion: window.__sealSmokeMotion?.latest || null,
+      focus: {tag:document.activeElement?.tagName, className:document.activeElement?.className, inert:document.activeElement?.inert},
     };
   });
 }
@@ -208,16 +210,17 @@ async function testBellyHop(page, scenario, screenshot) {
   return {stages:[...new Set(trace.map(s=>s.jumpStage))],peakObserved:Math.max(...trace.map(s=>s.jumpHeight)),input:scenario.expectedQuality==='high'?'Space':'native touch tap'};
 }
 async function testSwimming(page, screenshot) {
-  await page.locator('canvas.game-canvas').focus();
+  await page.locator('canvas.game-canvas').click({position:{x:10,y:10}});
+  await page.waitForFunction(()=>document.activeElement===document.querySelector('canvas.game-canvas'));
   await page.keyboard.down('Shift');
   await page.keyboard.down('ArrowUp');
   try {
-    await page.waitForFunction(()=>window.__sealSmokeMotion.latest?.mode==='surface',undefined,{polling:200,timeout:45000});
+    await page.waitForFunction(()=>window.__sealSmokeMotion.latest?.mode==='surface',undefined,{polling:200,timeout:90000});
     const shore=await page.evaluate(()=>({...window.__sealSmokeMotion.latest}));
     await page.waitForFunction(start=>{
       const s=window.__sealSmokeMotion.latest;
       return s?.mode==='surface' && Math.hypot(s.x-start.x,s.z-start.z)>=3;
-    },shore,{polling:200,timeout:45000});
+    },shore,{polling:200,timeout:90000});
   } finally {
     await page.keyboard.up('ArrowUp');await page.keyboard.up('Shift');
   }

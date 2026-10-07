@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+import { createAelysWater } from '../src/world/createAelysWater.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { WaterResponse, sampleAelysSurface, sampleAelysMeshSurface } from '../src/world/WaterResponse.js';
@@ -42,4 +44,30 @@ test('buoyancy samples the actual triangulated surface, including contact deform
   assert.equal(sampleAelysMeshSurface(.5,.5,time,response,size,segments),h(.5,.5));
   const impact=sampleAelysMeshSurface(.25,.25,time,response,size,segments)-sampleAelysMeshSurface(.25,.25,time,null,size,segments);
   assert.ok(impact<-.085,'The mobile mesh represents the broad contact depression.');
+});
+
+test('lagoon buoyancy matches ray intersections with the actual nonuniform water triangles',()=>{
+  for(const lowPower of [false,true]){
+    const water=createAelysWater({size:96,waterLevel:0,terrainHeight:()=>-4.6,lowPower});
+    const response=water.userData.response;response.impact(-4.1,-1.2,1);response.update(.4);
+    const positions=water.geometry.getAttribute('position'),indices=water.geometry.index;
+    assert.ok(positions.count<16000);
+    for(const [x,z] of [[-4.15,-1.24],[1.23,-3.54],[.25,5.6],[-18.2,-27.1]]){
+      const ray=new THREE.Ray(new THREE.Vector3(x,10,z),new THREE.Vector3(0,-1,0));
+      const vertices=[new THREE.Vector3(),new THREE.Vector3(),new THREE.Vector3()],hit=new THREE.Vector3();
+      let found=false;
+      for(let i=0;i<indices.count;i+=3){
+        for(let k=0;k<3;k++){
+          const v=vertices[k];v.fromBufferAttribute(positions,indices.getX(i+k));
+          v.y=sampleAelysSurface(v.x,v.z,.4,response);
+        }
+        if(ray.intersectTriangle(...vertices,false,hit)){
+          assert.ok(Math.abs(hit.y-water.userData.surfaceHeight(x,z,.4))<1e-6);
+          found=true;break;
+        }
+      }
+      assert.ok(found);
+    }
+    water.geometry.dispose();water.material.uniforms.uSeabed.value.dispose();water.material.dispose();
+  }
 });
