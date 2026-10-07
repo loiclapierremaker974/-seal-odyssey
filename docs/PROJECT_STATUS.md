@@ -4,9 +4,9 @@ Updated: 2026-10-07
 
 ## Original illustrated encounters (0.7.0)
 
-Original generated environment plates now supply the shore, submerged lagoon and ancient marine garden encounter settings. The creator explicitly accepted the shore plate as the world art direction. Luma uses a transparent six-pose atlas in the fixed lateral encounters; current ribbons, attacks, impacts and tactical turns remain live. Six original SVG action medallions and compact translucent controls improve the finish.
+Original generated environment plates now supply the shore, submerged lagoon and ancient marine garden encounter settings. The creator explicitly accepted the shore plate as the world art direction. Luma uses a transparent six-pose atlas in the fixed lateral encounters; current ribbons, attacks, impacts and tactical turns remain live. Six original SVG action medallions and compact translucent controls improve the finish. A newly generated flowing water manifestation replaces the visible placeholder sphere; it remains a configurable transient current, not a definitive species.
 
-Measured UV regions and exclusion boxes isolate the six poses without modifying the PNG. Assets load once and are owned by the loader; turns reuse their GPU resources. Encounters wait for their art. Victory, trust, persistent memory, withdrawal and exact exploration return preserve the existing game behavior.
+Measured UV regions and exclusion boxes isolate the six poses without modifying the PNG. Assets load once and are owned by the loader; turns reuse their GPU resources. Encounters wait for their art. Portrait orientation advice is a small nonblocking hint. Victory, trust, persistent memory, withdrawal and exact exploration return preserve the existing game behavior.
 
 Free exploration and care still use procedural 3D Luma and terrain. They have not yet been rebuilt to the approved environment plate's detail. This release establishes that visual direction in playable battles.
 

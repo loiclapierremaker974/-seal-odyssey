@@ -9,7 +9,8 @@ Les changements notables de cette reprise locale sont consignés ici. Le format 
 - Trois décors illustrés originaux pour les rencontres : rivage, lagune sous-marine et jardin marin ancien ; le rivage est validé comme référence artistique.
 - Six poses détaillées originales de Luma, avec découpage mesuré, gestes animés et effets de courant en direct.
 - Six icônes SVG d'action et interface compacte et translucide ; commandes clavier, focus et contrôles tactiles conservés.
-- Chargement préalable des illustrations et propriétaire unique des textures.
+- Manifestation de courant originale en eau cristalline, à la place de la sphère provisoire.
+- Chargement préalable des illustrations et propriétaire unique des textures ; conseil d'orientation qui laisse jouer en portrait.
 - Vérification des tours et du retour à l'exploration sur ordinateur, tactile paysage et portrait.
 
 L'exploration libre et les soins restent en 3D procédurale : ils doivent encore atteindre le détail du décor validé.

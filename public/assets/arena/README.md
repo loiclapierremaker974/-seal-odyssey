@@ -6,6 +6,7 @@ Created for Seal Odyssey on 2026-10-07 using OpenAI image generation, guided by 
 - aelys-lagoon.png: original submerged garden, 1672×941.
 - aelys-ruins.png: original ancient marine garden, 1672×941.
 - luma-poses.png: six original transparent poses, 1536×1024.
+- current-manifestation.png: original flowing abstract water manifestation, 1254×1254; a transient current to appease, not a finalized animal species.
 - ../battle-icons/*.svg: six original vector action medallions drawn in code.
 
 Measured UV rectangles and small exclusions isolate the pose drawings; the original PNG is retained. The fixed lateral encounter layers illustrations with live movement, waves, impacts and native controls. These plates are not a replacement 3D terrain model. Free exploration has not yet reached this detail.
