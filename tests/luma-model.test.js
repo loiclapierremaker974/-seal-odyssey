@@ -88,7 +88,7 @@ test('middle rig preserves the bind pose and foreflipper placement',()=>{
     assert.equal(front.length,2);
     for(const joint of front){
       assert.equal(joint.parent,middle);
-      expected.set(Math.sign(joint.position.x)*.32,.24,.42).multiplyScalar(.62);
+      expected.set(Math.sign(joint.position.x)*.44,.27,.38).multiplyScalar(.62);
       joint.getWorldPosition(actual);assert.ok(expected.distanceTo(actual)<1e-6);
     }
     disposeLumaProxy(luma);
@@ -109,10 +109,11 @@ test('jump poses leave the shadow at shore height with finite, volume-preserving
     for(let i=0;i<30;i++)luma.userData.update(1/60,{mode:'land',horizontalSpeed:2,gaitPhase:1.1,...state});
     luma.updateMatrixWorld(true);body.skeleton.update();shadow.getWorldPosition(world);
     assert.ok(Math.abs(world.y-(baseY+.016*scale))<1e-6);assert.equal(shadow.visible,true);
-    const core=body.skeleton.bones[0];
-    assert.ok(Math.abs(core.scale.x*core.scale.y*core.scale.z-1)<1e-8);
-    if(state.jumpStage==='anticipation')assert.ok(core.scale.y<.90&&core.scale.y>.86);
-    if(state.jumpStage==='landing')assert.ok(core.scale.y<.88&&core.scale.y>.84);
+    const core=body.skeleton.bones[0],torso=body.skeleton.bones[3];
+    assert.deepEqual(core.scale.toArray(),[1,1,1]);
+    assert.ok(Math.abs(torso.scale.x*torso.scale.y*torso.scale.z-1)<1e-8);
+    if(state.jumpStage==='anticipation')assert.ok(torso.scale.y<.97&&torso.scale.y>.94);
+    if(state.jumpStage==='landing')assert.ok(torso.scale.y<.95&&torso.scale.y>.92);
     if(state.airborne){assert.equal(luma.userData.motion.groundPush,0);assert.ok(shadow.material.opacity<.8);}
     luma.traverse(o=>assert.ok(o.matrixWorld.elements.every(Number.isFinite)));
     for(let i=0;i<body.geometry.attributes.position.count;i+=37){
@@ -136,8 +137,8 @@ test('distance gait drives the torso on shore and swimming banks with turns',()=
   luma.userData.update(1/60,{mode:'land',horizontalSpeed:3,gaitPhase:Math.PI/2,airborne:true,jumpStage:'air'});
   assert.ok(Math.abs(middle.rotation.x)<1e-9);
   for(let i=0;i<120;i++)luma.userData.update(1/60,{mode:'underwater',horizontalSpeed:3,turn:1});
-  assert.ok(core.rotation.z<-.10);
-  luma.userData.update(1/60,{mode:'underwater',horizontalSpeed:3,turn:-1});assert.ok(core.rotation.z>.10);
+  assert.ok(core.rotation.z<0&&Math.abs(core.rotation.z)<.1);
+  luma.userData.update(1/60,{mode:'underwater',horizontalSpeed:3,turn:-1});assert.ok(core.rotation.z>0&&Math.abs(core.rotation.z)<.1);
   disposeLumaProxy(luma);
 });
 
@@ -153,4 +154,47 @@ test('surface pose partially immerses the belly while keeping Luma visible above
   }
   assert.ok(min<-.03&&max>.2);
   disposeLumaProxy(luma);
+});
+
+test('skull shape and bind translation remain rigid through swimming and landing',()=>{
+  for(const highDetail of [false,true]){
+    const luma=createLumaProxy({highDetail,scale:1}),body=luma.getObjectByName('Luma continuous skin'),head=body.skeleton.bones.find(b=>b.name==='Luma head'),core=body.skeleton.bones[0],anchor=head.position.clone(),weights=body.geometry.getAttribute('skinWeight'),skull=[];
+    for(let i=0;i<weights.count;i++)if(weights.getY(i)>1-1e-6)skull.push(i);
+    assert.ok(skull.length>3);const pair=[skull[Math.floor(skull.length*.25)],skull[Math.floor(skull.length*.65)]],a=new THREE.Vector3(),b=new THREE.Vector3();
+    luma.updateMatrixWorld(true);body.skeleton.update();body.getVertexPosition(pair[0],a);body.getVertexPosition(pair[1],b);const distance=a.distanceTo(b);assert.ok(distance>0);
+    for(const state of [{mode:'surface',horizontalSpeed:4,turn:1},{mode:'underwater',horizontalSpeed:4,turn:-1},{mode:'land',horizontalSpeed:0,jumpStage:'anticipation',jumpPhase:1},{mode:'land',horizontalSpeed:0,jumpStage:'landing',landing:1}]){
+      for(let i=0;i<90;i++)luma.userData.update(1/60,state);luma.updateMatrixWorld(true);body.skeleton.update();
+      assert.ok(head.position.distanceTo(anchor)<1e-10);assert.deepEqual(core.scale.toArray(),[1,1,1]);body.getVertexPosition(pair[0],a);body.getVertexPosition(pair[1],b);assert.ok(Math.abs(a.distanceTo(b)-distance)<1e-6);
+    }disposeLumaProxy(luma);
+  }
+});
+test('flippers have closed nondegenerate volumes and monotonic symmetric sections',()=>{
+  for(const highDetail of [false,true]){
+    const luma=createLumaProxy({highDetail}),geometries=new Set();luma.traverse(o=>{if(o.isMesh&&o.name.includes('flipper'))geometries.add(o.geometry);});assert.equal(geometries.size,4);
+    for(const g of geometries){
+      const p=g.getAttribute('position'),idx=g.index,{rings,sections}=g.userData,stride=sections+1;assert.ok(rings>0&&sections>0);
+      for(let ring=0;ring<=rings;ring++){const z=p.getZ(ring*stride);if(ring)assert.ok(z>p.getZ((ring-1)*stride));
+        for(let side=0;side<=sections;side++){const i=ring*stride+side,j=ring*stride+sections-side;assert.ok(Math.abs(p.getZ(i)-z)<1e-8);assert.ok(Math.abs(p.getX(i)+p.getX(j))<1e-8);assert.ok(Math.abs(p.getY(i)-p.getY(j))<1e-8);}}
+      assert.ok(Math.abs(p.getX(rings*stride+sections/4))>1e-6);
+      const welded=new Map(),ids=[],edges=new Map(),a=new THREE.Vector3(),b=new THREE.Vector3(),c=new THREE.Vector3(),cross=new THREE.Vector3();
+      for(let i=0;i<p.count;i++){const key=[p.getX(i),p.getY(i),p.getZ(i)].map(v=>Math.round(v*1e7)).join(',');if(!welded.has(key))welded.set(key,welded.size);ids[i]=welded.get(key);}
+      for(let i=0;i<idx.count;i+=3){const tri=[idx.getX(i),idx.getX(i+1),idx.getX(i+2)];a.fromBufferAttribute(p,tri[0]);b.fromBufferAttribute(p,tri[1]);c.fromBufferAttribute(p,tri[2]);cross.crossVectors(b.sub(a),c.sub(a));assert.ok(cross.lengthSq()>1e-12);
+        for(const [u,v] of [[tri[0],tri[1]],[tri[1],tri[2]],[tri[2],tri[0]]]){const key=[ids[u],ids[v]].sort((a,b)=>a-b).join(',');edges.set(key,(edges.get(key)||0)+1);}}
+      for(const n of edges.values())assert.equal(n,2);
+    }disposeLumaProxy(luma);
+  }
+});
+test('fin roots remain embedded in actual skinned body throughout land and water poses',()=>{
+  for(const highDetail of [false,true]){
+    const luma=createLumaProxy({highDetail,scale:.62}),body=luma.getObjectByName('Luma continuous skin'),joints=[];
+    luma.traverse(o=>{if(o.name==='Luma shoulder joint'||o.name==='Luma hind flipper joint')joints.push(o);});assert.equal(joints.length,4);
+    const rest=joints.map(j=>j.position.clone()),ray=new THREE.Raycaster(),origin=new THREE.Vector3(),direction=new THREE.Vector3(),material=body.material,probe=material.clone();probe.side=THREE.DoubleSide;body.material=probe;
+    try{
+      for(const state of [{mode:'land',horizontalSpeed:0},{mode:'land',horizontalSpeed:3,gaitPhase:Math.PI/2},{mode:'surface',horizontalSpeed:4,turn:1},{mode:'underwater',horizontalSpeed:4,turn:-1},{mode:'land',horizontalSpeed:0,jumpStage:'landing',landing:1}]){
+        for(let i=0;i<90;i++)luma.userData.update(1/60,state);luma.updateMatrixWorld(true);body.skeleton.update();body.computeBoundingSphere();
+        for(let i=0;i<joints.length;i++){const joint=joints[i];assert.ok(joint.position.distanceTo(rest[i])<1e-10);joint.getWorldPosition(origin);direction.set(Math.sign(joint.position.x),0,0).transformDirection(joint.parent.matrixWorld);
+          for(const sign of [1,-1]){ray.set(origin,direction.clone().multiplyScalar(sign));const hit=ray.intersectObject(body,false)[0];assert.ok(hit&&Number.isFinite(hit.distance)&&hit.distance>0);}}
+      }
+    }finally{body.material=material;probe.dispose();disposeLumaProxy(luma);}
+  }
 });

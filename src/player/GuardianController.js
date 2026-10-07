@@ -759,7 +759,7 @@ export class GuardianController {
 
   /** A gentle portrait view during care; normal exploration settings persist. */
   setCameraFocus(focus = null) {
-    this._cameraFocus = focus ? { distance: 3.2, targetHeight: .86, pitch: .12, yaw: this.object.rotation.y + .28, ...focus } : null;
+    this._cameraFocus = focus ? { distance: 2.8, targetHeight: .48, pitch: .12, yaw: this.object.rotation.y + .28, ...focus } : null;
   }
 
   setEnabled(enabled) {

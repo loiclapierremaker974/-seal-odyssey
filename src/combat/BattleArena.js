@@ -1,37 +1,11 @@
 import * as THREE from 'three';
 import { createLumaProxy, disposeLumaProxy } from '../world/createLumaProxy.js';
+import { createArenaLandscape, createArenaWaveRibbon, createCurrentVeils, createArenaImpactPool } from './createArenaArt.js';
 
 const finite=(v,f=0)=>Number.isFinite(Number(v))?Number(v):f;
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
 const ACTION_TIME={'swift-wave':.44,'strong-wave':.56,guard:.42,dodge:.46,observe:.40,comfort:.50};
 const COLORS={water:0x54dfe0,light:0xffdda0,current:0x86b8ff,calm:0xa0f5d3};
-
-function grainMap(){
-  const size=128,data=new Uint8Array(size*size*4);
-  let seed=217;
-  for(let i=0;i<size*size;i++){
-    seed=(Math.imul(seed,1664525)+1013904223)>>>0;
-    const value=110+Math.round((seed/4294967296)*72);
-    data[i*4]=data[i*4+1]=data[i*4+2]=value;data[i*4+3]=255;
-  }
-  const map=new THREE.DataTexture(data,size,size);map.wrapS=map.wrapT=THREE.RepeatWrapping;
-  map.repeat.set(7,4);map.generateMipmaps=true;map.minFilter=THREE.LinearMipmapLinearFilter;
-  map.needsUpdate=true;return map;
-}
-
-function leafGeometry(){
-  const p=[],c=[],idx=[],base=new THREE.Color(0x28644b),tip=new THREE.Color(0x8bc998);
-  for(let row=0;row<=7;row++){
-    const t=row/7,w=Math.sin(t*Math.PI)*.075+.007,col=base.clone().lerp(tip,t);
-    for(const side of [-1,1]){
-      p.push(side*w+Math.sin(t*3.4)*.19,t*1.25,Math.sin(t*2.1)*.08);
-      c.push(col.r,col.g,col.b);
-    }
-  }
-  for(let row=0;row<7;row++){const i=row*2;idx.push(i,i+2,i+1,i+1,i+2,i+3);}
-  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));
-  g.setAttribute('color',new THREE.Float32BufferAttribute(c,3));g.setIndex(idx);g.computeVertexNormals();return g;
-}
 
 /** A lateral, fixed arena rendered through the exploration renderer and canvas. */
 export class BattleArena {
@@ -64,59 +38,22 @@ export class BattleArena {
   }
 
   _buildScene(){
-    this.scene.add(new THREE.HemisphereLight(0xd3f2ff,0x85714d,1.25));
-    const sun=new THREE.DirectionalLight(0xffe4b8,2.8);sun.position.set(-5,10,7);
+    this.scene.add(new THREE.HemisphereLight(0xc9edf4,0x8a7955,1.15));
+    const sun=new THREE.DirectionalLight(0xffe2b7,2.35);sun.position.set(-5,10,7);
     sun.castShadow=!this.lowPower;sun.shadow.mapSize.set(512,512);
     Object.assign(sun.shadow.camera,{left:-8,right:8,top:6,bottom:-3,near:1,far:30});
     sun.shadow.normalBias=.025;this.scene.add(sun);
-    const fill=new THREE.DirectionalLight(0xb7ecf4,.45);fill.position.set(5,3,3);this.scene.add(fill);
-    const skyGeometry=new THREE.PlaneGeometry(32,18),skyColors=[];
-    const top=new THREE.Color(0x438fbc),bottom=new THREE.Color(0xd2e8ce),shade=new THREE.Color();
+    const fill=new THREE.DirectionalLight(0x96d9e2,.52);fill.position.set(5,3,3);this.scene.add(fill);
+    const skyGeometry=new THREE.PlaneGeometry(32,18),colors=[];
+    const top=new THREE.Color(0x4b94b4),bottom=new THREE.Color(0xe1e8ce),shade=new THREE.Color();
     for(let i=0;i<skyGeometry.attributes.position.count;i++){
-      shade.copy(bottom).lerp(top,(skyGeometry.attributes.position.getY(i)+9)/18);
-      skyColors.push(shade.r,shade.g,shade.b);
+      shade.copy(bottom).lerp(top,(skyGeometry.attributes.position.getY(i)+9)/18);colors.push(shade.r,shade.g,shade.b);
     }
-    skyGeometry.setAttribute('color',new THREE.Float32BufferAttribute(skyColors,3));
+    skyGeometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
     this._mesh(this.scene,skyGeometry,new THREE.MeshBasicMaterial({vertexColors:true,fog:false}),0,4,-12);
     this._backdrops={};
-    const floorGeo=new THREE.PlaneGeometry(26,18),oceanGeo=new THREE.PlaneGeometry(26,10);
-    const rockGeo=new THREE.IcosahedronGeometry(1,this.lowPower?0:1),leafGeo=leafGeometry();
-    const columnGeo=new THREE.CylinderGeometry(.24,.31,1,8),capGeo=new THREE.BoxGeometry(.74,.18,.70);
-    const stone=new THREE.MeshStandardMaterial({color:0xa9ae9c,roughness:.88});
-    const moss=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.92,side:THREE.DoubleSide});
-    const grain=grainMap();
     for(const variant of ['shore','lagoon','ruins']){
-      const group=new THREE.Group();group.name='Battle backdrop '+variant;this.scene.add(group);this._backdrops[variant]=group;
-      const floorMat=new THREE.MeshStandardMaterial({color:variant==='shore'?0xe7ca92:variant==='lagoon'?0x469b92:0x537f83,
-        roughness:.92,bumpMap:grain,bumpScale:.055});
-      const floor=this._mesh(group,floorGeo,floorMat,0,-.03,-1);floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;
-      const seaMat=new THREE.MeshPhysicalMaterial({color:variant==='shore'?0x35b9c5:0x2999b6,
-        roughness:.26,metalness:0,clearcoat:.7,transparent:true,opacity:.80,depthWrite:false});
-      const ocean=this._mesh(group,oceanGeo,seaMat,0,.005,-7);ocean.rotation.x=-Math.PI/2;
-      for(let i=0;i<6;i++){
-        const x=(i-2.5)*3.2,z=-5.6-(i%2)*1.5,height=1.3+(i%3)*.48;
-        const rock=this._mesh(group,rockGeo,stone,x,height*.35,z,1.8,height,1.25);
-        rock.rotation.y=i*.8;rock.receiveShadow=true;
-      }
-      const plants=new THREE.InstancedMesh(leafGeo,moss,variant==='lagoon'?18:12);plants.name='Coastal leaves';
-      const placement=this._matrix;
-      for(let i=0;i<plants.count;i++){
-        placement.position.set((i-plants.count/2)*.85,-.01,-2.7-(i%3)*.55);
-        placement.rotation.set(0,i*2.399,.10*Math.sin(i));placement.scale.setScalar(.55+(i%4)*.16);
-        placement.updateMatrix();plants.setMatrixAt(i,placement.matrix);
-      }
-      group.add(plants);
-      if(variant==='ruins'){
-        for(const x of [-5.4,-4.7,-1.2,1.2,4.7,5.4]){
-          const height=Math.abs(x)<2?2.25:1.2+(Math.abs(x)%1)*1.4;
-          for(let row=0;row<3;row++)this._mesh(group,columnGeo,stone,x,(row+.5)*height/3,-4.5,1,height/3*.98,1);
-          this._mesh(group,capGeo,stone,x,height,-4.5);
-        }
-        this._mesh(group,new THREE.TorusGeometry(1.2,.23,6,this.lowPower?20:32,Math.PI),stone,0,2.25,-4.5);
-      }else if(variant==='lagoon'){
-        for(const x of [-4.8,4.8])this._mesh(group,rockGeo,stone,x,.12,-.75,1.3,.28,.8);
-      }
-      group.visible=false;
+      const group=createArenaLandscape({variant,lowPower:this.lowPower});group.visible=false;this.scene.add(group);this._backdrops[variant]=group;
     }
   }
 
@@ -125,24 +62,26 @@ export class BattleArena {
     this.luma.rotation.y=Math.PI/2;this.luma.position.copy(this._lumaBase);this.scene.add(this.luma);
     this._head=this.luma.getObjectByName('Luma head');
     this._middle=this.luma.getObjectByName('Luma middle spine');
+    this._tail=this.luma.getObjectByName('Luma rear propulsion');
     this._fore=[];this.luma.traverse(o=>{if(o.name==='Luma shoulder joint')this._fore.push(o);});
     this.opponent=new THREE.Group();this.opponent.name='Manifestation de courant instable';
     this.opponent.position.copy(this._opponentBase);this.scene.add(this.opponent);
     this._coreMaterial=new THREE.MeshPhysicalMaterial({color:COLORS.current,emissive:COLORS.current,
-      emissiveIntensity:.65,roughness:.28,clearcoat:.65});
-    this._core=this._mesh(this.opponent,new THREE.IcosahedronGeometry(.34,1),this._coreMaterial,0,0,0);
-    this._ringMaterial=new THREE.MeshBasicMaterial({color:COLORS.current,transparent:true,opacity:.7,depthWrite:false});
+      emissiveIntensity:.28,roughness:.35,clearcoat:.48});
+    this._core=this._mesh(this.opponent,new THREE.IcosahedronGeometry(.22,2),this._coreMaterial,0,0,0);
+    this._ringMaterial=new THREE.MeshBasicMaterial({color:COLORS.current,transparent:true,opacity:.24,depthWrite:false});
     this._opponentRings=[];
     for(const [radius,angle] of [[.65,.18],[.83,-.32]]){
       const ring=this._mesh(this.opponent,new THREE.TorusGeometry(radius,.028,5,this.lowPower?28:44),
         this._ringMaterial,0,0,0);ring.rotation.y=angle;this._opponentRings.push(ring);
     }
     this._haloMaterial=new THREE.MeshBasicMaterial({color:COLORS.current,side:THREE.BackSide,
-      transparent:true,opacity:.07,depthWrite:false});
+      transparent:true,opacity:.016,depthWrite:false});
     this._mesh(this.opponent,new THREE.SphereGeometry(.92,16,10),this._haloMaterial,0,0,0);
     this._orbit=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.045,0),
       new THREE.MeshBasicMaterial({color:0xc1fbf0}),this.lowPower?8:14);
     this._orbit.frustumCulled=false;this.opponent.add(this._orbit);
+    this._veils=createCurrentVeils({lowPower:this.lowPower});this.opponent.add(this._veils);
   }
 
   _buildEffects(){
@@ -155,8 +94,10 @@ export class BattleArena {
         const ring=this._mesh(group,ringGeo,material,0,0,0,radius,radius,radius);
         ring.rotation.y=.35;
       }
+      const ribbon=createArenaWaveRibbon({lowPower:this.lowPower});
+      ribbon.material.uniforms.uColor.value=material.color;group.add(ribbon.mesh);
       this.scene.add(group);group.visible=false;
-      this._waves.push({group,material,age:1,duration:.32,from:0,to:0,y:1,strong:false});
+      this._waves.push({group,material,ribbon,age:1,duration:.32,from:0,to:0,y:1,strong:false});
     }
     const shieldMat=new THREE.MeshBasicMaterial({color:0x9df8e8,transparent:true,opacity:.10,
       side:THREE.BackSide,depthWrite:false});
@@ -165,10 +106,11 @@ export class BattleArena {
     this._focusMaterial=new THREE.MeshBasicMaterial({color:COLORS.light,transparent:true,opacity:0,depthWrite:false});
     this._focus=this._mesh(this.scene,ringGeo,this._focusMaterial,3.05,1.03,.2);
     this._focus.visible=false;
+    this._impacts=createArenaImpactPool({lowPower:this.lowPower});this.scene.add(this._impacts.group);
     const count=this.lowPower?30:56;
     this._particleData={count,p:new Float32Array(count*3),v:new Float32Array(count*3),
       life:new Float32Array(count),duration:new Float32Array(count),cursor:0};
-    this._particles=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.045,0),
+    this._particles=new THREE.InstancedMesh(new THREE.SphereGeometry(.038,8,5),
       new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.75,depthWrite:false}),count);
     this._particles.frustumCulled=false;this.scene.add(this._particles);
     this._matrix.scale.setScalar(0);this._matrix.updateMatrix();
@@ -189,7 +131,7 @@ export class BattleArena {
     this.luma.position.copy(this._lumaBase);this.opponent.position.copy(this._opponentBase);
     this.luma.userData.setMood('curious');this.opponent.scale.setScalar(1);
     Object.assign(this.opponent.userData,{name:this.name,maxResolve:this.maxResolve});
-    this._particleData.life.fill(0);for(const f of this.floats)f.active=false;
+    this._particleData.life.fill(0);this._impacts.reset();for(const f of this.floats)f.active=false;
     for(const wave of this._waves)wave.group.visible=false;
     this._shieldLife=this._focusLife=0;this.update(0);return this;
   }
@@ -252,8 +194,8 @@ export class BattleArena {
 
   _wave(actor,strong,element){
     const wave=this._waves[this._waveCursor++%this._waves.length];
-    Object.assign(wave,{age:0,duration:strong?.34:.30,from:actor==='luma'?-2.2:2.2,
-      to:actor==='luma'?2.9:-2.6,y:this.variant==='shore'?.85:.76,strong});
+    Object.assign(wave,{age:0,duration:strong?.34:.30,from:actor==='luma'?this.luma.position.x+1.35:this.opponent.position.x-.75,
+      to:actor==='luma'?this.opponent.position.x-.1:this.luma.position.x+.5,y:this.variant==='shore'?.85:.76,strong});
     wave.material.color.copy(this._palette[element]||this._palette.water);wave.group.visible=true;
     this._emit(wave.from,wave.y,.12,wave.material.color,strong?12:7);
   }
@@ -264,9 +206,16 @@ export class BattleArena {
       this._emit(3.05,1.03,.2,this._palette.calm,this.lowPower?18:28);}
     if(e.type==='defeat'||e.type==='retreat')this.luma.userData.setMood('calm');
     if(e.type==='hit'){this._float(e);const target=e.target||(e.actor==='luma'?'opponent':'luma');
-      this._emit(target==='luma'?-2.65:3.05,1,.25,this._palette[e.element]||this._palette.current,
-        this.lowPower?9:16);}
+      const point=target==='luma'?this.luma.position:this.opponent.position;
+      const x=point.x+(target==='luma'?.36:0),y=point.y+(target==='luma'?.82:0);
+      const color=this._palette[e.element]||this._palette.current;
+      this._impacts.emit(x,y,.48,color,e.actionId==='strong-wave'||e.combo);
+      this._emit(x,y,.32,color,this.lowPower?12:20);}
     if(e.type==='guard'||e.actionId==='guard')this._shieldLife=1;
+    if(e.type==='guard'&&e.amount>0){
+      this._impacts.emit(this._shield.position.x+.64,.92,.62,this._palette.calm,true);
+      this._emit(this._shield.position.x+.64,.92,.60,this._palette.calm,this.lowPower?9:14);
+    }
     if(e.type==='observe'||e.actionId==='observe'){
       this._focus.position.copy(this._opponentBase);this._focus.position.z=.2;this._focusLife=.85;
     }
@@ -278,6 +227,8 @@ export class BattleArena {
 
   _pose(entry,dt){
     const event=entry?.event,progress=entry?clamp(entry.age/entry.duration):0;
+    const preparation=clamp(progress/.22)*clamp((.38-progress)/.13);
+    const drive=Math.sin(clamp((progress-.25)/.63)*Math.PI);
     const envelope=Math.sin(progress*Math.PI),action=event?.type==='action'?event.actionId:
       ['guard','dodge','observe','comfort'].includes(event?.type)?event.type:null;
     const lumaAction=action&&(event?.actor==='luma'||(event?.type==='dodge'&&event.target!=='opponent'));
@@ -292,11 +243,12 @@ export class BattleArena {
       if(action==='dodge'){
         // Prepare first; the actual evasive hop happens during the incoming wave.
         if(event.type==='action')Object.assign(state,{jumpStage:'anticipation',jumpPhase:envelope*.4});
-      }else if(action==='strong-wave'&&progress<.48){
-        Object.assign(state,{jumpStage:'anticipation',jumpPhase:envelope*.8});
+      }else if(action==='strong-wave'&&progress<.38){
+        Object.assign(state,{jumpStage:'anticipation',jumpPhase:preparation*.92});
       }else if(action==='guard')Object.assign(state,{jumpStage:'anticipation',jumpPhase:envelope*.5});
-      if(action==='swift-wave')this.luma.position.x+=envelope*.17;
-      if(action==='strong-wave')this.luma.position.x+=envelope*.24;
+      if(action==='swift-wave'||action==='strong-wave'){
+        this.luma.position.x+=drive*(action==='strong-wave'?.31:.19)-preparation*.065;
+      }
     }
     if(entry?.defense==='dodge'){
       const lift=clamp(progress/.22)*clamp((1-progress)/.14);
@@ -310,9 +262,14 @@ export class BattleArena {
     if(lumaAction){
       if(action==='swift-wave'||action==='strong-wave'){
         const strong=action==='strong-wave';
-        for(const f of this._fore)f.rotation.x+=envelope*(strong?.20:.12);
-        if(this._middle)this._middle.rotation.x-=envelope*(strong?.11:.05);
-        if(this._head)this._head.rotation.x-=envelope*.045;
+        for(const f of this._fore){
+          const side=f.position.x<0?-1:1;
+          f.rotation.x+=preparation*.14-drive*(strong?.30:.20);
+          f.rotation.z+=side*(preparation*.09+drive*(strong?.19:.12));
+        }
+        if(this._middle)this._middle.rotation.x+=preparation*.09-drive*(strong?.17:.085);
+        if(this._head)this._head.rotation.x-=preparation*.035+drive*.085;
+        if(this._tail)this._tail.rotation.x-=drive*(strong?.06:.035);
       }else if(action==='observe'&&this._head)this._head.rotation.z+=envelope*.095;
       else if(action==='comfort'&&this._head)this._head.rotation.z-=envelope*.075;
     }
@@ -354,8 +311,11 @@ export class BattleArena {
       if(!wave.group.visible)continue;wave.age+=dt;const p=clamp(wave.age/wave.duration);
       wave.group.visible=p<1;
       wave.group.position.set(THREE.MathUtils.lerp(wave.from,wave.to,p),wave.y+Math.sin(p*Math.PI)*.16,.25);
-      wave.group.scale.setScalar((wave.strong?.57:.34)+p*.23);wave.group.rotation.z=this.time*(wave.strong?2:4);
-      wave.material.opacity=Math.sin(p*Math.PI)*.75;
+      const scale=(wave.strong?.85:.64)+p*.21;
+      wave.group.scale.set(wave.to>wave.from?scale:-scale,scale,scale);
+      wave.group.rotation.z=Math.sin(p*Math.PI)*.08;
+      wave.material.opacity=Math.sin(p*Math.PI)*.18;
+      wave.ribbon.update(p,Math.sin(p*Math.PI)*.82);
     }
     this._shieldLife=Math.max(0,this._shieldLife-dt);this._shield.visible=this._shieldLife>0;
     this._shield.material.opacity=.10+this._shieldLife*.07;
@@ -366,9 +326,9 @@ export class BattleArena {
     const color=this._palette[this.element]||this._palette.current;
     this._coreMaterial.color.copy(color).lerp(this._palette.calm,this.calm);
     this._coreMaterial.emissive.copy(this._coreMaterial.color);
-    this._coreMaterial.emissiveIntensity=.65-this.calm*.23;
+    this._coreMaterial.emissiveIntensity=.28-this.calm*.09;
     this._ringMaterial.color.copy(this._coreMaterial.color);
-    this._haloMaterial.color.copy(this._coreMaterial.color);this._haloMaterial.opacity=.07+this.calm*.12;
+    this._haloMaterial.color.copy(this._coreMaterial.color);this._haloMaterial.opacity=.016+this.calm*.055;
     this.opponent.scale.setScalar(1-this.calm*.15);
     this._core.rotation.set(this.time*.32,this.time*.45,this.time*.12);
     for(let i=0;i<this._opponentRings.length;i++)
@@ -380,6 +340,9 @@ export class BattleArena {
       placement.updateMatrix();this._orbit.setMatrixAt(i,placement.matrix);
     }
     this._orbit.instanceMatrix.needsUpdate=true;
+    this._veils.userData.update(this.time,this._coreMaterial.color,this.calm);
+    this._impacts.update(dt);
+    this._backdrops[this.variant]?.userData.update?.(this.time);
     for(const f of this.floats){
       if(!f.active)continue;f.age+=dt;f.active=f.age<f.duration;
       this._point.set(f.worldX,f.worldY+f.age*.55,.5).project(this.camera);

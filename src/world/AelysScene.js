@@ -4,6 +4,9 @@ import { resolveCoastalMovement } from './coastalCollision.js';
 import { createAelysBackdrop } from './createAelysBackdrop.js';
 import { createAelysMotionFX } from './createAelysMotionFX.js';
 import { createAelysWater } from './createAelysWater.js';
+import { createAelysWaterGarden } from './createAelysWaterGarden.js';
+import { createAelysMicroLife } from './createAelysMicroLife.js';
+import createLushAelys from './createLushAelys.js';
 import {
   ECHOES,
   INTERACTION,
@@ -508,7 +511,7 @@ export class AelysScene {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.06;
     this.renderer.shadowMap.enabled = !this.lowPower;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
 
     this.scene = new THREE.Scene();
     this.scene.name = 'Aelys - Onde Premiere vertical slice';
@@ -622,6 +625,23 @@ export class AelysScene {
 
     this.ancientSite = createAncientSite(this.lowPower);
     this.scene.add(this.ancientSite);
+    this.lush = createLushAelys({
+      lowPower: this.lowPower,
+      terrainHeight: getAelysTerrainHeight,
+      waterLevel: WORLD.waterLevel,
+      pixelRatio: this.renderer.getPixelRatio(),
+    });
+    this.microLife = createAelysMicroLife({
+      terrainHeight: getAelysTerrainHeight,
+      lowPower: this.lowPower,
+    });
+    this.waterGarden = createAelysWaterGarden({
+      lowPower: this.lowPower,
+      terrainHeight: getAelysTerrainHeight,
+      surfaceHeight: (x,z) => this.water.userData.surfaceHeight(x,z,this.elapsed),
+      onContact: (x,z,strength) => this.water.userData.response.impact(x,z,strength),
+    });
+    this.scene.add(this.lush, this.microLife, this.waterGarden);
   }
 
   _createRocksAndPlants() {
@@ -1101,7 +1121,12 @@ export class AelysScene {
     const nextHeight = Math.max(1, Math.floor(height || bounds?.height || this.window?.innerHeight || 1));
     const ratio = Math.min(this.window?.devicePixelRatio || 1, this.pixelRatioCap);
     if (this.renderer.getPixelRatio() !== ratio) this.renderer.setPixelRatio(ratio);
-    this.renderer.setSize(nextWidth, nextHeight, false);
+    // Repeated observer notifications must not discard a freshly rendered frame.
+    if (this._renderWidth !== nextWidth || this._renderHeight !== nextHeight) {
+      this.renderer.setSize(nextWidth, nextHeight, false);
+      this._renderWidth = nextWidth;
+      this._renderHeight = nextHeight;
+    }
     this.camera.aspect = nextWidth / nextHeight;
     this.camera.updateProjectionMatrix();
   }
@@ -1131,6 +1156,10 @@ export class AelysScene {
   }
 
   updateLumaMotion(position, state, delta, enabled = true) {
+    this.lush.userData.update(this.elapsed, position);
+    this.microLife.userData.setRestoration(this.ancientSite.userData.restoration);
+    this.microLife.userData.update(this.elapsed, position);
+    this.waterGarden.userData.update(delta, this.elapsed, position, state);
     this._wakeTimer += delta;
     const nearSurface = position.y > WORLD.waterLevel - .65;
     if (enabled && state.mode !== 'land' && !state.airborne && nearSurface) {
@@ -1178,6 +1207,9 @@ export class AelysScene {
     this._resizeObserver?.disconnect();
     if (this._resizeHandler) this.window?.removeEventListener('resize', this._resizeHandler);
 
+    this.lush?.userData.dispose();
+    this.microLife?.userData.dispose();
+    this.waterGarden?.userData.dispose();
     const geometries = new Set();
     const materials = new Set();
     this.scene.traverse((object) => {

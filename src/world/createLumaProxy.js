@@ -8,14 +8,17 @@ const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t *
 // A single skin, from the rear peduncle through the raised chest to the skull.
 // z, centre height, horizontal radius, vertical radius; local forward is +Z.
 const PROFILE = [
-  [-1.72, .24, .025, .025], [-1.52, .28, .22, .20],
-  [-1.20, .37, .43, .33], [-.78, .48, .59, .45],
-  [-.28, .57, .68, .54], [.18, .67, .65, .63],
-  [.52, .84, .54, .73], [.78, 1.12, .45, .68],
-  [1.02, 1.41, .54, .53], [1.24, 1.48, .56, .47],
-  [1.46, 1.43, .46, .37], [1.64, 1.34, .27, .23],
-  [1.76, 1.31, .025, .025],
+  [-1.78, .20, .025, .035], [-1.58, .24, .17, .20],
+  [-1.24, .37, .38, .335], [-.80, .47, .55, .435],
+  [-.25, .53, .64, .495], [.24, .54, .62, .505],
+  [.60, .57, .51, .465], [.82, .63, .41, .385],
+  [1.02, .75, .42, .37], [1.24, .79, .45, .385],
+  [1.46, .75, .38, .33], [1.63, .67, .235, .22],
+  [1.76, .635, .03, .035],
 ];
+const HEAD_ANCHOR = [0, .72, .82];
+const MIDDLE_ANCHOR = [0, .53, -.08];
+const TAIL_ANCHOR = [0, .30, -1.15];
 
 function sampleProfile(z) {
   let i = 0;
@@ -37,16 +40,16 @@ function createSkinGeometry(highDetail) {
   const rings = highDetail ? 88 : 52, sections = highDetail ? 56 : 32;
   const positions = [], uvs = [], indices = [], skinIndices = [], weights = [];
   for (let r = 0; r <= rings; r++) {
-    const v = r / rings, z = -1.72 + v * 3.48;
+    const v = r / rings, z = THREE.MathUtils.lerp(PROFILE[0][0], PROFILE.at(-1)[0], v);
     const [centre, rx, ry] = sampleProfile(z);
-    const head = smooth(.48, 1.12, z), tail = 1 - smooth(-1.45, -.72, z);
+    const head = smooth(.70, 1.05, z), tail = 1 - smooth(-1.48, -.92, z);
     const remaining = 1 - head - tail;
-    const middle = remaining * smooth(-1.20, -.45, z) * (1 - smooth(.38, 1, z)) * .82;
+    const middle = remaining * smooth(-1.10, -.45, z) * (1 - smooth(.50, .80, z));
     for (let s = 0; s <= sections; s++) {
       const u = s / sections, angle = u * Math.PI * 2;
       const x = Math.sin(angle) * rx;
       let y = centre - Math.cos(angle) * ry;
-      // Soft, grounded ventral plane; the chest still rises into the head.
+      // The ventral contact belongs to the torso; the skull stays round and low.
       y = Math.max(.035, y);
       positions.push(x, y, z);
       uvs.push(u, v);
@@ -86,6 +89,7 @@ function createSkinGeometry(highDetail) {
     normals.setXYZ(a,normal.x,normal.y,normal.z);normals.setXYZ(b,normal.x,normal.y,normal.z);
   }
   geometry.computeBoundingSphere();
+  Object.assign(geometry.userData, { rings, sections });
   return geometry;
 }
 
@@ -104,7 +108,7 @@ function makeSkinTextures(highDetail) {
     const cream = clamp(ventral * .94 + smooth(.85, .99, v) * .30);
     const grain = random() - .5;
     const cloud = Math.sin(u * Math.PI * 14 + Math.sin(v * 19)) * Math.sin(v * 37) * 6;
-    const silver = [162, 153, 143], pale = [235, 226, 208];
+    const silver = [157, 163, 166], pale = [227, 229, 220];
     for (let c = 0; c < 3; c++) albedo[i+c] = silver[c] * (1-cream) + pale[c]*cream + cloud + grain*11;
     albedo[i+3] = relief[i+3] = roughness[i+3] = 255;
     const flow=x*.53+Math.sin(y*.018)*2.0;
@@ -197,24 +201,50 @@ function createShortFur(body,textures,parent,highDetail) {
 }
 
 function flipperGeometry(highDetail, hind = false) {
-  const rings = highDetail ? 22 : 14, sides = highDetail ? 24 : 16;
-  const p=[], uv=[], idx=[], length=hind ? .79 : .96;
-  for(let r=0;r<=rings;r++) {
-    const t=r/rings, breadth=(hind?.28:.21)*Math.pow(Math.sin(Math.PI*t),.58)+.025*(1-t);
-    for(let s=0;s<=sides;s++) {
-      const a=s/sides*Math.PI*2;
-      const fingertip=Math.pow(t,8)*.045*Math.sin(s/sides*Math.PI*10);
-      p.push(Math.sin(a)*breadth, Math.cos(a)*(.012+.035*Math.sin(Math.PI*t)), length*t+fingertip);
-      uv.push(.27+Math.sin(a)*breadth*.32,.16+t*.57);
+  const rings=highDetail?22:14, sides=highDetail?24:16, length=hind?.76:.74;
+  const profile=hind
+    ? [[0,.055,.025],[.23,.11,.024],[.55,.22,.021],[.78,.285,.019],[.93,.245,.014],[1,.045,.009]]
+    : [[0,.055,.030],[.15,.095,.030],[.42,.17,.026],[.72,.20,.021],[.90,.155,.016],[1,.032,.010]];
+  const positions=[],uvs=[],indices=[],stride=sides+1;
+  for(let ring=0;ring<=rings;ring++){
+    const t=ring/rings;
+    let station=0;
+    while(station<profile.length-2 && t>profile[station+1][0])station++;
+    const a=profile[station],b=profile[station+1],blend=smooth(a[0],b[0],t);
+    const breadth=THREE.MathUtils.lerp(a[1],b[1],blend);
+    const thickness=THREE.MathUtils.lerp(a[2],b[2],blend);
+    for(let side=0;side<=sides;side++){
+      const angle=side/sides*Math.PI*2;
+      // Positive distal radii and monotonic stations prevent crossed tips.
+      positions.push(Math.sin(angle)*breadth,Math.cos(angle)*thickness,length*t);
+      uvs.push(.27+Math.sin(angle)*breadth*.32,.16+t*.57);
     }
   }
-  for(let r=0;r<rings;r++)for(let s=0;s<sides;s++){
-    const a=r*(sides+1)+s,b=a+sides+1;idx.push(a,b,a+1,b,b+1,a+1);
+  for(let ring=0;ring<rings;ring++)for(let side=0;side<sides;side++){
+    const a=ring*stride+side,b=a+stride;
+    indices.push(a,b,a+1,b,b+1,a+1);
   }
-  const g=new THREE.BufferGeometry();
-  g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));
-  g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setIndex(idx);
-  g.computeVertexNormals();g.computeBoundingSphere();return g;
+  for(const [ring,forward] of [[0,false],[rings,true]]){
+    const centre=positions.length/3;
+    positions.push(0,0,forward?length:0);uvs.push(.27,forward?.73:.16);
+    for(let side=0;side<sides;side++){
+      const a=ring*stride+side;
+      indices.push(...(forward?[centre,a+1,a]:[centre,a,a+1]));
+    }
+  }
+  const geometry=new THREE.BufferGeometry();
+  geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+  geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));
+  geometry.setIndex(indices);geometry.computeVertexNormals();
+  const normals=geometry.attributes.normal,normal=new THREE.Vector3();
+  for(let ring=0;ring<=rings;ring++){
+    const a=ring*stride,b=a+sides;
+    normal.set(normals.getX(a)+normals.getX(b),normals.getY(a)+normals.getY(b),normals.getZ(a)+normals.getZ(b)).normalize();
+    normals.setXYZ(a,normal.x,normal.y,normal.z);normals.setXYZ(b,normal.x,normal.y,normal.z);
+  }
+  geometry.computeBoundingSphere();
+  Object.assign(geometry.userData,{rings,sections:sides,length,hind});
+  return geometry;
 }
 
 function addMesh(parent,name,geometry,material,position,scale) {
@@ -236,60 +266,66 @@ function curveMesh(points,radius,material,highDetail) {
 export function createLumaProxy({scale=.62,shadows=true,highDetail=true}={}) {
   const root=new THREE.Group();root.name='Luma — phoque gris d’Aqualys';
   root.scale.setScalar(scale);
-  Object.assign(root.userData,{kind:'guardian',sealId:'luma',isProceduralProxy:true,modelRevision:'luma-motion-v1',collisionRadius:.68*scale});
-  const visual=new THREE.Group();root.add(visual);
+  Object.assign(root.userData,{kind:'guardian',sealId:'luma',isProceduralProxy:true,modelRevision:'luma-anatomy-v2',collisionRadius:.68*scale});
+  const visual=new THREE.Group();visual.name='Luma anatomical visual';root.add(visual);
   const textures=makeSkinTextures(highDetail);
   const fur=new THREE.MeshPhysicalMaterial({color:0xffffff,...textures,metalness:0,roughness:.78,bumpScale:.014,clearcoat:.08,clearcoatRoughness:.38,envMapIntensity:.65});
-  const muzzleMaterial=new THREE.MeshPhysicalMaterial({color:0xe6ddc9,roughness:.69,metalness:0,bumpMap:textures.bumpMap,bumpScale:.004,clearcoat:.12});
-  const noseMaterial=new THREE.MeshPhysicalMaterial({color:0x382c29,roughness:.3,clearcoat:.3});
-  const eyeMaterial=new THREE.MeshPhysicalMaterial({color:0x080c10,roughness:.065,metalness:0,clearcoat:1,clearcoatRoughness:.03,envMapIntensity:1.4});
-  const lidMaterial=new THREE.MeshStandardMaterial({color:0x777168,roughness:.73});
+  const muzzleMaterial=new THREE.MeshPhysicalMaterial({color:0xe2e5dd,roughness:.69,metalness:0,bumpMap:textures.bumpMap,bumpScale:.004,clearcoat:.12});
+  const noseMaterial=new THREE.MeshPhysicalMaterial({color:0x252220,roughness:.3,clearcoat:.3});
+  const eyeMaterial=new THREE.MeshPhysicalMaterial({color:0x17100d,roughness:.065,metalness:0,clearcoat:1,clearcoatRoughness:.03,envMapIntensity:1.4});
+  const lidMaterial=new THREE.MeshStandardMaterial({color:0x79817f,roughness:.73});
   const mouthMaterial=new THREE.MeshStandardMaterial({color:0x473731,roughness:.7});
   const sphere=new THREE.SphereGeometry(1,highDetail?32:20,highDetail?24:14);
   const body=new THREE.SkinnedMesh(createSkinGeometry(highDetail),fur);
   body.name='Luma continuous skin';body.castShadow=shadows;body.receiveShadow=true;body.frustumCulled=false;
   const core=new THREE.Bone(),head=new THREE.Bone(),tail=new THREE.Bone(),middle=new THREE.Bone();
   core.name='Luma spine';head.name='Luma head';tail.name='Luma rear propulsion';middle.name='Luma middle spine';
-  head.position.set(0,1.10,.65);tail.position.set(0,.30,-1.15);middle.position.set(0,.55,-.05);
+  head.position.set(...HEAD_ANCHOR);tail.position.set(...TAIL_ANCHOR);middle.position.set(...MIDDLE_ANCHOR);
   core.add(head,tail,middle);body.add(core);visual.add(body);body.bind(new THREE.Skeleton([core,head,tail,middle]));
   const furLayers=createShortFur(body,textures,visual,highDetail);
   root.userData.furLayers=furLayers.length;
 
   const face=new THREE.Group();face.name='Luma expression';head.add(face);
-  const facePos=(x,y,z)=>[x,y-1.10,z-.65];
-  for(const side of [-1,1])addMesh(face,'Luma soft muzzle',sphere,muzzleMaterial,facePos(side*.135,1.315,1.70),[.235,.165,.162]);
-  const chin=addMesh(face,'Luma chin',sphere,muzzleMaterial,facePos(0,1.19,1.60),[.245,.10,.17]);
-  const nose=addMesh(face,'Luma seal nose',sphere,noseMaterial,facePos(0,1.43,1.80),[.12,.082,.065]);
+  const facePos=(x,y,z)=>[x,y-HEAD_ANCHOR[1],z-HEAD_ANCHOR[2]];
+  for(const side of [-1,1])addMesh(face,'Luma soft muzzle',sphere,muzzleMaterial,facePos(side*.13,.665,1.70),[.19,.12,.125]);
+  const chin=addMesh(face,'Luma chin',sphere,muzzleMaterial,facePos(0,.57,1.57),[.205,.075,.15]);
+  const chinRestY=chin.position.y;
+  const noseGeometry=sphere.clone(),noseVertices=noseGeometry.attributes.position;
+  for(let i=0;i<noseVertices.count;i++){
+    noseVertices.setX(i,noseVertices.getX(i)*(.78+.22*smooth(-.9,.4,noseVertices.getY(i))));
+  }
+  noseGeometry.computeVertexNormals();
+  const nose=addMesh(face,'Luma seal nose',noseGeometry,noseMaterial,facePos(0,.735,1.765),[.10,.070,.061]);
   // Two recessed nostrils in the fleshy triangular nose.
   for(const side of [-1,1]) {
-    const nostril=addMesh(face,'Luma nostril',sphere,eyeMaterial,facePos(side*.046,1.438,1.852),[.023,.028,.008]);
+    const nostril=addMesh(face,'Luma nostril',sphere,eyeMaterial,facePos(side*.036,.751,1.824),[.017,.022,.006]);
     nostril.rotation.z=side*.35;
   }
-  const mouth=curveMesh([[-.23,.138,.99],[-.12,.114,1.07],[0,.145,1.095],[.12,.114,1.07],[.23,.138,.99]],.009,mouthMaterial,highDetail);
+  const mouth=curveMesh([[-.19,.612,1.813],[-.10,.598,1.810],[-.05,.596,1.796],[0,.595,1.763],[.05,.596,1.796],[.10,.598,1.810],[.19,.612,1.813]].map(p=>facePos(...p)),.007,mouthMaterial,highDetail);
   mouth.name='Luma gentle mouth';face.add(mouth);
-  const philtrum=curveMesh([[0,.31,1.19],[0,.23,1.20],[0,.145,1.095]],.007,mouthMaterial,highDetail);face.add(philtrum);
+  const philtrum=curveMesh([[0,.710,1.830],[0,.659,1.800],[0,.603,1.773]].map(p=>facePos(...p)),.005,mouthMaterial,highDetail);face.add(philtrum);
 
   const eyes=[];
   for(const side of [-1,1]) {
-    const socket=new THREE.Group();socket.position.set(...facePos(side*.305,1.59,1.485));socket.rotation.y=side*.36;face.add(socket);
-    addMesh(socket,'Luma eyelid rim',sphere,lidMaterial,[0,0,0],[.132,.146,.047]);
+    const socket=new THREE.Group();socket.position.set(...facePos(side*.29,.875,1.475));socket.rotation.y=side*.42;face.add(socket);
+    addMesh(socket,'Luma eyelid rim',sphere,lidMaterial,[0,0,0],[.115,.125,.043]);
     const blink=new THREE.Group();socket.add(blink);
-    const eye=addMesh(blink,side<0?'Luma left eye':'Luma right eye',sphere,eyeMaterial,[0,0,.015],[.114,.128,.053]);
+    const eye=addMesh(blink,side<0?'Luma left eye':'Luma right eye',sphere,eyeMaterial,[0,0,.016],[.098,.106,.052]);
     // Small reflected sky patches move and close with the cornea.
     const glintMaterial=new THREE.MeshBasicMaterial({color:0xf1f5f0,transparent:true,opacity:.82});
-    addMesh(blink,'Luma corneal reflection',sphere,glintMaterial,[-.036,.050,.063],[.019,.013,.004]).castShadow=false;
-    addMesh(blink,'Luma small eye reflection',sphere,glintMaterial,[.044,-.035,.064],[.007,.006,.003]).castShadow=false;
+    addMesh(blink,'Luma corneal reflection',sphere,glintMaterial,[-.027,.035,.063],[.014,.010,.003]).castShadow=false;
+    addMesh(blink,'Luma small eye reflection',sphere,glintMaterial,[.036,-.025,.064],[.006,.004,.002]).castShadow=false;
     eyes.push(blink);eye.userData.cornea=true;
   }
 
   const whiskerMaterial=new THREE.MeshStandardMaterial({color:0xeee4d2,roughness:.58});
   const whiskerGeometries=[], follicles=[];
   for(const side of [-1,1])for(let i=0;i<(highDetail?12:8);i++){
-    const band=i%3, row=Math.floor(i/3), x=side*(.12+band*.058);
-    const y=.205+row*.038, z=1.178-band*.011;
+    const band=i%3, row=Math.floor(i/3);
+    const [x,y,z]=facePos(side*(.10+band*.046),.638+row*.027,1.817-band*.012);
     follicles.push([x,y,z]);
-    const reach=.52+(i%4)*.052;
-    const whisker=curveMesh([[x,y,z],[side*(.33+band*.02),y+.018,z+.075],[side*(.55+reach*.3),y+(i-5)*.025,z+.048],[side*(.30+reach),y+(i-5)*.043,z-.075]],highDetail?.0027:.0031,whiskerMaterial,highDetail);
+    const reach=.40+(i%4)*.035;
+    const whisker=curveMesh([[x,y,z],[side*(.26+band*.02),y+.012,z+.035],[side*(.40+reach*.25),y+(i-5)*.020,z+.025],[side*(.18+reach),y+(i-5)*.031,z-.055]],highDetail?.0027:.0031,whiskerMaterial,highDetail);
     whiskerGeometries.push(whisker.geometry);
   }
 
@@ -304,10 +340,10 @@ export function createLumaProxy({scale=.62,shadows=true,highDetail=true}={}) {
   for(const side of [-1,1])for(const hind of [false,true]){
     const pivot=new THREE.Group();pivot.name=hind?'Luma hind flipper joint':'Luma shoulder joint';
     // Hind flippers and peduncle move as one assembly during propulsion.
-    if(hind){pivot.position.set(side*.15,.24-.30,-1.52+1.15);tail.add(pivot);}
-    else{pivot.position.set(side*.32,.24-.55,.42+.05);middle.add(pivot);}
+    if(hind){pivot.position.set(side*.12,.22-TAIL_ANCHOR[1],-1.54-TAIL_ANCHOR[2]);tail.add(pivot);}
+    else{pivot.position.set(side*.44,.27-MIDDLE_ANCHOR[1],.38-MIDDLE_ANCHOR[2]);middle.add(pivot);}
     const blade=addMesh(pivot,hind?'Luma webbed hind flipper':'Luma tapered fore flipper',flipperGeometry(highDetail,hind),fur,[0,0,0]);
-    pivot.rotation.set(hind?-.06:.19,side*(hind?2.82:1.01),0);
+    pivot.rotation.set(hind?-.18:-.48,side*(hind?Math.PI-.24:2.12),0);
     flippers.push({pivot,side,hind,rest:pivot.rotation.clone(),blade});
   }
 
@@ -343,13 +379,14 @@ export function createLumaProxy({scale=.62,shadows=true,highDetail=true}={}) {
     if(Number.isFinite(state.gaitPhase))animation.gaitPhase=state.gaitPhase;
     else if(!swimming&&!airborne)animation.gaitPhase+=horizontalSpeed*dt*2.8;
     const t=animation.time,s=animation.swim,wet=animation.wet,air=animation.air;
-    const swimFlex=s*(airborne?0:1),wave=Math.sin(t*(3.2+m*4));
-    const gait=Math.sin(animation.gaitPhase),breath=Math.sin(t*1.65)*.009;
+    const swimFlex=s*(airborne?0:1),wave=Math.sin(t*(2.8+m*3.6));
+    const gait=Math.sin(animation.gaitPhase),breath=Math.sin(t*1.65)*.005*(1-air);
     const anticipation=stage==='anticipation'?smooth(0,1,phase):0;
     const landing=airborne?0:clamp(finite(state.landing));
     const groundPush=(airborne||swimming)?0:(1-s)*(1-anticipation*.9)*(1-landing*.8);
-    const squash=(anticipation*.12+landing*.14)*(1-s);
-    const coreY=1+breath-squash,volume=1/Math.sqrt(coreY);
+    const squash=(anticipation*.045+landing*.060)*(1-s);
+    const torsoY=1+breath-squash,volume=1/Math.sqrt(torsoY);
+    const bank=-turn*swimFlex*clamp(m)*.065;
     fur.roughness=.78-wet*.34;fur.clearcoat=.08+wet*.43;fur.bumpScale=.014-wet*.008;
     muzzleMaterial.roughness=.69-wet*.27;muzzleMaterial.clearcoat=.12+wet*.30;
     for(const layer of furLayers){
@@ -357,38 +394,42 @@ export function createLumaProxy({scale=.62,shadows=true,highDetail=true}={}) {
       layer.material.roughness=.86-wet*.32;
       layer.material.alphaTest=.16+layer.fraction*.74+wet*.055;
     }
-    core.scale.set(volume,coreY,volume);
-    core.rotation.set(animation.airPitch+gait*m*groundPush*.018,0,-turn*swimFlex*.13);
-    middle.rotation.set(gait*m*groundPush*.075+Math.sin(t*(3.2+m*4)+.45)*swimFlex*(.02+m*.04),
-      -wave*swimFlex*(.04+m*.08),wave*swimFlex*.025-turn*swimFlex*.035);
-    head.position.set(0,1.10-s*.57,.65+s*.08);
-    head.rotation.set(s*.12,Math.sin(t*.57)*.026*(1-m*.4)+turn*swimFlex*.04,
-      animation.mood==='curious'?Math.sin(t*.63)*.038*(1-s)*(1-air*.7):0);
-    tail.rotation.set(wave*swimFlex*.03,wave*swimFlex*(.05+m*.18),wave*swimFlex*.045);
-    visual.position.y=Math.abs(gait)*m*groundPush*.025+swimFlex*Math.sin(t*1.9)*.015;
+    // Keep the skull rigid while the soft torso compresses.
+    core.scale.set(1,1,1);
+    middle.scale.set(volume,torsoY,volume);
+    core.rotation.set(animation.airPitch+gait*m*groundPush*.012,0,bank);
+    middle.rotation.set(gait*m*groundPush*.035+
+      Math.sin(t*(2.8+m*3.6)+.45)*swimFlex*m*.015,
+      -wave*swimFlex*m*.018+turn*swimFlex*m*.012,0);
+    head.position.set(...HEAD_ANCHOR);
+    head.rotation.set(swimFlex*.012,
+      Math.sin(t*.57)*.018*(1-s)*(1-air)+turn*swimFlex*m*.012,
+      animation.mood==='curious'?Math.sin(t*.63)*.012*(1-s)*(1-air):0);
+    tail.rotation.set(wave*swimFlex*m*.022,
+      wave*swimFlex*m*.10+turn*swimFlex*m*.018,0);
+    visual.position.y=Math.abs(gait)*m*groundPush*.012+swimFlex*Math.sin(t*1.9)*.005;
     for(const f of flippers){
       f.pivot.rotation.copy(f.rest);
+      // Local attachments remain on their weighted skin.
       if(f.hind){
-        f.pivot.rotation.y+=f.side*wave*swimFlex*(.12+m*.31);
-        f.pivot.rotation.x+=wave*swimFlex*.1;
+        f.pivot.rotation.x+=s*.14+wave*swimFlex*m*.045;
+        f.pivot.rotation.y+=f.side*wave*swimFlex*m*.07;
+        f.pivot.rotation.z+=f.side*wave*swimFlex*m*.025;
       }else{
-        // The middle bone is raised .55 units; retain the original shoulder height.
-        f.pivot.position.y=.24-.55+s*.14;
-        f.pivot.rotation.y+=f.side*(s*.71+air*.10-gait*m*groundPush*.045);
-        f.pivot.rotation.z+=f.side*(s*.16+swimFlex*wave*.07+gait*m*groundPush*.08+air*.08);
-        f.pivot.rotation.x+=gait*m*groundPush*.10-s*.18;
+        f.pivot.rotation.x+=s*.40+gait*m*groundPush*.055;
+        f.pivot.rotation.y+=f.side*(s*.25+air*.06-gait*m*groundPush*.035);
+        f.pivot.rotation.z+=f.side*(swimFlex*wave*m*.055+gait*m*groundPush*.050+air*.04);
       }
     }
     const blinkPhase=t%5.3,blink=blinkPhase>5.12?Math.max(.055,Math.abs(blinkPhase-5.21)/.09):1;
-    const soft=animation.mood==='calm'||animation.mood==='happy'?.9:1;
+    const soft=(animation.mood==='calm'||animation.mood==='happy')?.94:1;
     for(const eye of eyes)eye.scale.y=blink*soft;
-    chin.position.y=.09+(animation.mood==='happy'?Math.sin(t*2)*.006:0);
-    // Root jumpHeight is measured in world metres; the shadow stays on the shore.
+    chin.position.y=chinRestY+(animation.mood==='happy'?Math.sin(t*2)*.004:0);
     shadow.position.y=.016-jumpHeight/scale;
     shadow.visible=!swimming&&!state.overWater;
     shadowMaterial.opacity=(1-s)*Math.exp(-jumpHeight*1.4);
     Object.assign(motion,{gaitPhase:animation.gaitPhase,groundPush,jumpStage:stage,jumpHeight,
-      airborne,anticipation,landing,airPitch:animation.airPitch,bank:-turn*swimFlex*.13,coreY});
+      airborne,anticipation,landing,airPitch:animation.airPitch,bank,coreY:1,torsoY});
     root.userData.wetness=wet;root.userData.swimBlend=s;
   };
   root.userData.update(0,{mode:'land'});

@@ -2,6 +2,19 @@
 
 Les changements notables de cette reprise locale sont consignés ici. Le format suit l'esprit de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et les versions applicatives suivent le versionnage sémantique quand il devient pertinent.
 
+## [0.6.0] - 2026-10-07
+
+### Amélioré
+
+- Anatomie procédurale de Luma : corps bas et allongé, tête ronde, yeux bruns et museau rapprochés de la fiche ; articulations stables en nage et nageoires fermées sans pointes croisées.
+- Caméras d'exploration et de soin adaptées à la nouvelle hauteur du phoque.
+- Bosquets côtiers, fougères à folioles, fleurs, mousses, rubans de kelp et jardins de coraux, avec mouvement sous le vent et les courants.
+- Bancs de poissons qui s'écartent de Luma, insectes ailés et petites fourmis à six pattes animées qui dévient puis reprennent leur trajet.
+- Feuilles et fleurs flottantes qui suivent la surface réelle, s'inclinent au contact et déclenchent une ride d'eau.
+- Décors de combat plus végétaux et effets d'onde, de protection et d'impact réutilisés avec anticipation des gestes.
+
+Les feuilles flottantes sont décoratives et réactives ; elles ne constituent pas des plateformes de saut. La petite faune et les coraux sont des silhouettes génériques de prototype. Les modèles restent procéduraux, et le niveau artistique de la fiche est encore à atteindre.
+
 ## [0.5.0] - 2026-10-07
 
 ### Ajouté

@@ -2,6 +2,16 @@
 
 Updated: 2026-10-07
 
+## Living-shore art iteration (0.6.0)
+
+Luma now uses a lower elongated torso and rounded head, fixed head translation during swimming, smaller inset brown eyes and closed non-crossing flipper tips. Four rig bone names and care/motion APIs remain compatible. Camera targets follow the revised height.
+
+Aelys adds instanced coastal groves, fern leaflets, flowers, moss, ribbon kelp and branching corals. Fish schools scatter locally then resume their paths. Small ants have segmented bodies, articulated legs and antennae; terrestrial trails remain on queried dry land beside the central route. Flying insects yield gently around Luma. Floating leaves follow the actual animated water height, depress on surface contact and trigger a bounded wave response; they are decorative, not jump platforms.
+
+Battle scenery adds organic foliage, eroded rocks and flowing current/attack ribbons with reused impact effects. All new systems bound their counts and own their resources, with disposal before the generic scene resource walk. No new canon species or economies are established by this art iteration.
+
+The game remains a procedural playable beta. It has not reached the reference sheet's production asset quality. Browser CI checks functionality and actual WebGL captures on desktop and emulated touch; software-rendered CI does not measure real-device frame rates.
+
 ## Fixed-camera encounters (0.5.0)
 
 Three entry-triggered current encounters add a lateral orthographic battle view to free exploration. Six actions use encounter-only energy, cooldowns, visible intentions and observation/defence combos. Shore, lagoon and ruins use distinct procedural scenery. Victory means appeasement, records a memory and improves trust once. Retreat/defeat return to the same world position without damaging exploration vitals. The existing local-save schema persists memories, including resolved encounters.

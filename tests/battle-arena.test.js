@@ -102,3 +102,47 @@ test('evasion is visible while the incoming wave travels, without a late second 
   }
   assert.ok(incoming&&outcome);arena.dispose();
 });
+
+test('arena flora, coral and ivy use distinct batched scenery with a shared water clock',()=>{
+  for(const lowPower of [true,false]){
+    const arena=new BattleArena({renderer:renderer(),lowPower});
+    for(const encounter of ENCOUNTERS){
+      arena.open(encounter);arena.update(.05);
+      const landscape=arena._backdrops[encounter.arena];assert.equal(landscape.userData.features.organic,true);assert.equal(landscape.userData.clock.value,arena.time);
+      for(const [name,count] of [['Coastal broad leaves',96],['Layered coastal fronds',42],['Aelys littoral flowers',96]]){
+        const mesh=landscape.getObjectByName(name);assert.ok(mesh.isInstancedMesh&&mesh.count>=count);
+      }
+      assert.equal(Boolean(landscape.getObjectByName('Lagoon branching coral')),encounter.arena==='lagoon');
+      assert.equal(Boolean(landscape.getObjectByName('Ancient site climbing ivy')),encounter.arena==='ruins');
+      const water=landscape.getObjectByName('Arena shallow water'),shader={uniforms:{},vertexShader:'#include <begin_vertex>\n#include <beginnormal_vertex>'};water.material.onBeforeCompile(shader);
+      assert.equal(shader.uniforms.uArenaClock,landscape.userData.clock);
+    }arena.dispose();
+  }
+});
+test('strong resonance anticipates backwards, pushes with flippers and recovers',()=>{
+  const arena=new BattleArena({renderer:renderer(),lowPower:true});arena.open(ENCOUNTERS[0]);arena.play(new CombatSystem().act('strong-wave').events);
+  let prepared=false,released=false,ribbon=false;const baseX=arena._lumaBase.x;
+  for(let frame=0;frame<75;frame++){
+    arena.update(.01);const e=arena._current;
+    if(e?.event.actor==='luma'&&e.event.actionId==='strong-wave'){
+      const p=e.age/e.duration;
+      if(p>.15&&p<.23){prepared=true;assert.ok(arena.luma.position.x<baseX-.04);}
+      if(p>.48&&p<.6){released=true;assert.ok(arena.luma.position.x>baseX+.25);}
+      for(const joint of arena._fore)assert.ok([joint.rotation.x,joint.rotation.y,joint.rotation.z].every(Number.isFinite));
+    }
+    for(const w of arena._waves)if(w.group.visible){ribbon=true;assert.ok(w.ribbon.mesh.isMesh);assert.ok(w.ribbon.material.uniforms.uOpacity.value>=0);}
+  }
+  assert.ok(prepared&&released&&ribbon);arena.close();arena.dispose();
+});
+test('recipient-local impacts reuse four slots without creating resources during turns',()=>{
+  const arena=new BattleArena({renderer:renderer(),lowPower:true});arena.open(ENCOUNTERS[0]);const before=resources(arena.scene);
+  arena.play([{type:'hit',actor:'luma',target:'opponent',element:'water',amount:18}]);arena.update(.01);
+  const active=arena._impacts.slots.filter(s=>s.mesh.visible);assert.equal(active.length,1);
+  assert.ok(Math.abs(active[0].mesh.position.x-arena._opponentBase.x)<.08);assert.ok(Math.abs(active[0].mesh.position.y-arena._opponentBase.y)<.1);
+  arena.update(.2);arena.play([{type:'guard',actor:'luma',amount:14,element:'light'}]);arena.update(.01);
+  assert.ok(arena._impacts.slots.some(s=>s.mesh.visible&&Math.abs(s.mesh.position.x-(arena._shield.position.x+.64))<.001));
+  for(let i=0;i<100;i++)arena._impacts.emit(0,1,.5,arena._palette.water,Boolean(i%2));
+  assert.equal(arena._impacts.slots.length,4);assert.deepEqual(resources(arena.scene),before);
+  for(let i=0;i<10;i++)arena._impacts.update(.1);
+  assert.ok(arena._impacts.slots.every(s=>!s.mesh.visible));arena.open(ENCOUNTERS[1]);assert.ok(arena._impacts.slots.every(s=>!s.mesh.visible));arena.dispose();
+});
