@@ -263,13 +263,13 @@ async function runScenario(scenario) {
     const filename = scenario.name + '-' + phase + '.png';
     // Briefly hold browser RAF callbacks and drain software GL for a stable,
     // actual game frame. The production renderer/game code is unchanged.
-    await page.evaluate(async()=>{
+    await page.evaluate(async(holdFrame)=>{
       await document.fonts.ready;
       if(!window.__sealSmokeFrames.paused) {
         await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
       }
-      window.__sealSmokeFrames.pause();
-    });
+      if(holdFrame)window.__sealSmokeFrames.pause();
+    },phase!=='care');
     try {
       // Capture the compositor's actual frozen frame directly. Playwright's
       // screenshot preparation waits for extra animation frames during layout
