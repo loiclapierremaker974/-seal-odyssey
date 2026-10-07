@@ -1,0 +1,13 @@
+name: Inspect original island art
+on:
+  push:
+    branches: [codex/island-exploration-2026-10-07]
+permissions:
+  contents: read
+jobs:
+  alpha:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Decode actual Luma alpha and atlas cells
+        run: node --test tests/luma-overhead-alpha.test.js
