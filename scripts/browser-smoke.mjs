@@ -159,6 +159,7 @@ function installCaptureGate() {
     const entry=pending.get(id);if(entry?.native)nativeCancel(entry.native);pending.delete(id);
   };
   window.__sealSmokeFrames={
+    get paused(){return paused;},
     pause(){paused=true;document.querySelector('canvas')?.getContext('webgl2')?.finish();},
     resume(){paused=false;for(const [id,entry] of pending)if(!entry.native)schedule(id,entry);}
   };
@@ -258,7 +259,13 @@ async function runScenario(scenario) {
     const filename = scenario.name + '-' + phase + '.png';
     // Briefly hold browser RAF callbacks and drain software GL for a stable,
     // actual game frame. The production renderer/game code is unchanged.
-    await page.evaluate(()=>window.__sealSmokeFrames.pause());
+    await page.evaluate(async()=>{
+      await document.fonts.ready;
+      if(!window.__sealSmokeFrames.paused) {
+        await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      }
+      window.__sealSmokeFrames.pause();
+    });
     try {
       await page.screenshot({ path: join(artifactDirectory, filename), timeout: 45000, animations: 'disabled' });
       result.screenshots.push(filename);
@@ -272,6 +279,9 @@ async function runScenario(scenario) {
   try {
     const response = await page.goto(appURL, { waitUntil: 'domcontentloaded' });
     assert.ok(response?.ok(), 'Production document must load successfully.');
+    // Settle UI transitions before capture; avoid layout/ResizeObserver changes
+    // while the WebGL frame gate holds the portrait canvas.
+    await page.addStyleTag({content:'*,*::before,*::after{animation-duration:0s!important;animation-delay:0s!important;transition-duration:0s!important;transition-delay:0s!important;}'});
     await page.getByRole('button', { name: 'Entrer dans Aqualys', exact: true }).waitFor({ state: 'visible' });
     await page.waitForFunction(() => {
       const probe = window.__sealSmokeWebGL;
