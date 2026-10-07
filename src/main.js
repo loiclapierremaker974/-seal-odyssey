@@ -361,7 +361,7 @@ function boot() {
     elapsed += delta;
     controller.update(delta);
     motionTimer += delta;
-    if (controller.state.jumpStage !== 'idle' && motionTimer >= .08) {
+    if ((controller.state.jumpStage !== 'idle' || controller.state.moving) && motionTimer >= .08) {
       motionTimer = 0;
       emitMotionState(controller.state);
     }

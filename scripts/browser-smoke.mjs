@@ -212,6 +212,11 @@ async function testSwimming(page, screenshot) {
   await page.keyboard.down('ArrowUp');
   try {
     await page.waitForFunction(()=>window.__sealSmokeMotion.latest?.mode==='surface',undefined,{polling:200,timeout:45000});
+    const shore=await page.evaluate(()=>({...window.__sealSmokeMotion.latest}));
+    await page.waitForFunction(start=>{
+      const s=window.__sealSmokeMotion.latest;
+      return s?.mode==='surface' && Math.hypot(s.x-start.x,s.z-start.z)>=3;
+    },shore,{polling:200,timeout:45000});
   } finally {
     await page.keyboard.up('ArrowUp');await page.keyboard.up('Shift');
   }
