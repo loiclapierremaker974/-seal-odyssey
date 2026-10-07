@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const finite = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
 
 // A single skin, from the rear peduncle through the raised chest to the skull.
@@ -39,6 +40,8 @@ function createSkinGeometry(highDetail) {
     const v = r / rings, z = -1.72 + v * 3.48;
     const [centre, rx, ry] = sampleProfile(z);
     const head = smooth(.48, 1.12, z), tail = 1 - smooth(-1.45, -.72, z);
+    const remaining = 1 - head - tail;
+    const middle = remaining * smooth(-1.20, -.45, z) * (1 - smooth(.38, 1, z)) * .82;
     for (let s = 0; s <= sections; s++) {
       const u = s / sections, angle = u * Math.PI * 2;
       const x = Math.sin(angle) * rx;
@@ -47,8 +50,8 @@ function createSkinGeometry(highDetail) {
       y = Math.max(.035, y);
       positions.push(x, y, z);
       uvs.push(u, v);
-      skinIndices.push(0, 1, 2, 0);
-      weights.push(1 - head - tail, head, tail, 0);
+      skinIndices.push(0, 1, 2, 3);
+      weights.push(remaining - middle, head, tail, middle);
     }
   }
   const stride = sections + 1;
@@ -60,7 +63,7 @@ function createSkinGeometry(highDetail) {
   for (const [r, forward] of [[0, false], [rings, true]]) {
     const base = positions.length / 3, station = r === 0 ? PROFILE[0] : PROFILE.at(-1);
     positions.push(0, station[1], station[0]); uvs.push(.5, r / rings);
-    skinIndices.push(0, 1, 2, 0); weights.push(r ? 0 : 0, r ? 1 : 0, r ? 0 : 1, 0);
+    skinIndices.push(0, 1, 2, 3); weights.push(r ? 0 : 0, r ? 1 : 0, r ? 0 : 1, 0);
     for (let s = 0; s < sections; s++) {
       const a = r * stride + s;
       indices.push(...(forward ? [base, a, a + 1] : [base, a + 1, a]));
@@ -233,7 +236,7 @@ function curveMesh(points,radius,material,highDetail) {
 export function createLumaProxy({scale=.62,shadows=true,highDetail=true}={}) {
   const root=new THREE.Group();root.name='Luma — phoque gris d’Aqualys';
   root.scale.setScalar(scale);
-  Object.assign(root.userData,{kind:'guardian',sealId:'luma',isProceduralProxy:true,modelRevision:'luma-reference-v2',collisionRadius:.68*scale});
+  Object.assign(root.userData,{kind:'guardian',sealId:'luma',isProceduralProxy:true,modelRevision:'luma-motion-v1',collisionRadius:.68*scale});
   const visual=new THREE.Group();root.add(visual);
   const textures=makeSkinTextures(highDetail);
   const fur=new THREE.MeshPhysicalMaterial({color:0xffffff,...textures,metalness:0,roughness:.78,bumpScale:.014,clearcoat:.08,clearcoatRoughness:.38,envMapIntensity:.65});
@@ -245,10 +248,10 @@ export function createLumaProxy({scale=.62,shadows=true,highDetail=true}={}) {
   const sphere=new THREE.SphereGeometry(1,highDetail?32:20,highDetail?24:14);
   const body=new THREE.SkinnedMesh(createSkinGeometry(highDetail),fur);
   body.name='Luma continuous skin';body.castShadow=shadows;body.receiveShadow=true;body.frustumCulled=false;
-  const core=new THREE.Bone(),head=new THREE.Bone(),tail=new THREE.Bone();
-  core.name='Luma spine';head.name='Luma head';tail.name='Luma rear propulsion';
-  head.position.set(0,1.10,.65);tail.position.set(0,.30,-1.15);
-  core.add(head,tail);body.add(core);visual.add(body);body.bind(new THREE.Skeleton([core,head,tail]));
+  const core=new THREE.Bone(),head=new THREE.Bone(),tail=new THREE.Bone(),middle=new THREE.Bone();
+  core.name='Luma spine';head.name='Luma head';tail.name='Luma rear propulsion';middle.name='Luma middle spine';
+  head.position.set(0,1.10,.65);tail.position.set(0,.30,-1.15);middle.position.set(0,.55,-.05);
+  core.add(head,tail,middle);body.add(core);visual.add(body);body.bind(new THREE.Skeleton([core,head,tail,middle]));
   const furLayers=createShortFur(body,textures,visual,highDetail);
   root.userData.furLayers=furLayers.length;
 
@@ -302,7 +305,7 @@ export function createLumaProxy({scale=.62,shadows=true,highDetail=true}={}) {
     const pivot=new THREE.Group();pivot.name=hind?'Luma hind flipper joint':'Luma shoulder joint';
     // Hind flippers and peduncle move as one assembly during propulsion.
     if(hind){pivot.position.set(side*.15,.24-.30,-1.52+1.15);tail.add(pivot);}
-    else{pivot.position.set(side*.32,.24,.42);visual.add(pivot);}
+    else{pivot.position.set(side*.32,.24-.55,.42+.05);middle.add(pivot);}
     const blade=addMesh(pivot,hind?'Luma webbed hind flipper':'Luma tapered fore flipper',flipperGeometry(highDetail,hind),fur,[0,0,0]);
     pivot.rotation.set(hind?-.06:.19,side*(hind?2.82:1.01),0);
     flippers.push({pivot,side,hind,rest:pivot.rotation.clone(),blade});
@@ -320,15 +323,33 @@ export function createLumaProxy({scale=.62,shadows=true,highDetail=true}={}) {
   shadow.rotation.x=-Math.PI/2;shadow.castShadow=false;shadow.receiveShadow=false;
   if(!shadows)root.traverse(o=>{if(o.isMesh)o.castShadow=false;});
 
-  const animation={time:0,mood:'curious',swim:0,wet:0};
+
+  const animation={time:0,mood:'curious',swim:0,wet:0,gaitPhase:0,air:0,airPitch:0};
+  const motion={revision:'luma-motion-v1',gaitPhase:0,groundPush:0,jumpStage:'idle',jumpHeight:0};
+  root.userData.motion=motion;
   root.userData.setMood=(mood='curious')=>{animation.mood=mood;};
   root.userData.update=(delta=0,state={})=>{
-    const dt=clamp(Number(delta)||0,0,.1);animation.time+=dt;
+    const dt=clamp(finite(delta),0,.1);animation.time+=dt;
+    const airborne=Boolean(state.airborne),stage=state.jumpStage||'idle';
+    const phase=clamp(finite(state.jumpPhase)),jumpHeight=Math.max(0,finite(state.jumpHeight));
     const swimming=state.mode==='surface'||state.mode==='underwater';
-    animation.swim+=((swimming?1:0)-animation.swim)*(1-Math.exp(-5*dt));
+    const horizontalSpeed=Math.max(0,finite(state.horizontalSpeed??state.speed));
+    const m=clamp(horizontalSpeed/4.25,0,1.5),turn=clamp(finite(state.turn),-1,1);
+    animation.swim+=(((swimming&&!airborne)?1:0)-animation.swim)*(1-Math.exp(-5*dt));
     animation.wet+=((swimming?1:0)-animation.wet)*(1-Math.exp(-(swimming?3.2:.075)*dt));
-    const t=animation.time,s=animation.swim,m=clamp((Number(state.speed)||0)/4.25,0,1.5),wet=animation.wet;
-    const wave=Math.sin(t*(3.2+m*4)),breath=Math.sin(t*1.65)*.009;
+    animation.air+=((airborne?1:0)-animation.air)*(1-Math.exp(-11*dt));
+    const pitch=airborne?Math.sin((phase-.5)*Math.PI)*.08:0;
+    animation.airPitch+=(pitch-animation.airPitch)*(1-Math.exp(-9*dt));
+    if(Number.isFinite(state.gaitPhase))animation.gaitPhase=state.gaitPhase;
+    else if(!swimming&&!airborne)animation.gaitPhase+=horizontalSpeed*dt*2.8;
+    const t=animation.time,s=animation.swim,wet=animation.wet,air=animation.air;
+    const swimFlex=s*(airborne?0:1),wave=Math.sin(t*(3.2+m*4));
+    const gait=Math.sin(animation.gaitPhase),breath=Math.sin(t*1.65)*.009;
+    const anticipation=stage==='anticipation'?smooth(0,1,phase):0;
+    const landing=airborne?0:clamp(finite(state.landing));
+    const groundPush=(airborne||swimming)?0:(1-s)*(1-anticipation*.9)*(1-landing*.8);
+    const squash=(anticipation*.12+landing*.14)*(1-s);
+    const coreY=1+breath-squash,volume=1/Math.sqrt(coreY);
     fur.roughness=.78-wet*.34;fur.clearcoat=.08+wet*.43;fur.bumpScale=.014-wet*.008;
     muzzleMaterial.roughness=.69-wet*.27;muzzleMaterial.clearcoat=.12+wet*.30;
     for(const layer of furLayers){
@@ -336,26 +357,38 @@ export function createLumaProxy({scale=.62,shadows=true,highDetail=true}={}) {
       layer.material.roughness=.86-wet*.32;
       layer.material.alphaTest=.16+layer.fraction*.74+wet*.055;
     }
+    core.scale.set(volume,coreY,volume);
+    core.rotation.set(animation.airPitch+gait*m*groundPush*.018,0,-turn*swimFlex*.13);
+    middle.rotation.set(gait*m*groundPush*.075+Math.sin(t*(3.2+m*4)+.45)*swimFlex*(.02+m*.04),
+      -wave*swimFlex*(.04+m*.08),wave*swimFlex*.025-turn*swimFlex*.035);
     head.position.set(0,1.10-s*.57,.65+s*.08);
-    head.rotation.set(s*.12,Math.sin(t*.57)*.026*(1-m*.4),animation.mood==='curious'?Math.sin(t*.63)*.038*(1-s):0);
-    tail.rotation.y=wave*s*(.05+m*.18);tail.rotation.z=wave*s*.045;
-    core.scale.y=1+breath;
-    visual.position.y=(1-s)*Math.abs(wave)*m*.025+s*Math.sin(t*1.9)*.015;
+    head.rotation.set(s*.12,Math.sin(t*.57)*.026*(1-m*.4)+turn*swimFlex*.04,
+      animation.mood==='curious'?Math.sin(t*.63)*.038*(1-s)*(1-air*.7):0);
+    tail.rotation.set(wave*swimFlex*.03,wave*swimFlex*(.05+m*.18),wave*swimFlex*.045);
+    visual.position.y=Math.abs(gait)*m*groundPush*.025+swimFlex*Math.sin(t*1.9)*.015;
     for(const f of flippers){
       f.pivot.rotation.copy(f.rest);
-      if(f.hind){f.pivot.rotation.y+=f.side*wave*s*(.12+m*.31);f.pivot.rotation.x+=wave*s*.1;}
-      else{
-        f.pivot.position.y=.24+s*.14;
-        f.pivot.rotation.y+=f.side*s*.71;
-        f.pivot.rotation.z+=f.side*(s*.16+s*wave*.07+(1-s)*wave*m*.06);
-        f.pivot.rotation.x-=s*.18;
+      if(f.hind){
+        f.pivot.rotation.y+=f.side*wave*swimFlex*(.12+m*.31);
+        f.pivot.rotation.x+=wave*swimFlex*.1;
+      }else{
+        // The middle bone is raised .55 units; retain the original shoulder height.
+        f.pivot.position.y=.24-.55+s*.14;
+        f.pivot.rotation.y+=f.side*(s*.71+air*.10-gait*m*groundPush*.045);
+        f.pivot.rotation.z+=f.side*(s*.16+swimFlex*wave*.07+gait*m*groundPush*.08+air*.08);
+        f.pivot.rotation.x+=gait*m*groundPush*.10-s*.18;
       }
     }
-    const phase=t%5.3,blink=phase>5.12?Math.max(.055,Math.abs(phase-5.21)/.09):1;
+    const blinkPhase=t%5.3,blink=blinkPhase>5.12?Math.max(.055,Math.abs(blinkPhase-5.21)/.09):1;
     const soft=animation.mood==='calm'||animation.mood==='happy'?.9:1;
     for(const eye of eyes)eye.scale.y=blink*soft;
     chin.position.y=.09+(animation.mood==='happy'?Math.sin(t*2)*.006:0);
-    shadow.visible=!swimming;shadowMaterial.opacity=1-s;
+    // Root jumpHeight is measured in world metres; the shadow stays on the shore.
+    shadow.position.y=.016-jumpHeight/scale;
+    shadow.visible=!swimming&&!state.overWater;
+    shadowMaterial.opacity=(1-s)*Math.exp(-jumpHeight*1.4);
+    Object.assign(motion,{gaitPhase:animation.gaitPhase,groundPush,jumpStage:stage,jumpHeight,
+      airborne,anticipation,landing,airPitch:animation.airPitch,bank:-turn*swimFlex*.13,coreY});
     root.userData.wetness=wet;root.userData.swimBlend=s;
   };
   root.userData.update(0,{mode:'land'});

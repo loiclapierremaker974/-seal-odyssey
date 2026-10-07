@@ -17,6 +17,7 @@ Les changements notables de cette reprise locale sont consignés ici. Le format 
 - Allure terrestre plus lente, rythme du ventre et réception avec compression douce.
 - Ombre conservée sur le sol durant le vol ; les soins attendent la fin du bond.
 - Eau turquoise, lumière réfléchie alignée avec le soleil et écume plus fine.
+- Surface déformée par les impacts de Luma : creux, ondes qui se propagent, sillages et retour au calme ; flottaison sur la même hauteur locale, ventre partiellement immergé.
 - Maintenir la remontée à la surface ne fait plus monter Luma dans l’air.
 
 Le jeu reste une fondation procédurale jouable ; le rendu de la fiche demeure la cible artistique.

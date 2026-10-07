@@ -590,8 +590,10 @@ export class AelysScene {
 
     this.water = createWater(this.quality);
     this.scene.add(this.water);
-    this.motionFX = createAelysMotionFX({lowPower:this.lowPower,waterLevel:WORLD.waterLevel});
+    this.motionFX = createAelysMotionFX({lowPower:this.lowPower,waterLevel:WORLD.waterLevel,surfaceHeight:(x,z)=>this.water.userData.surfaceHeight(x,z,this.elapsed)});
     this.scene.add(this.motionFX);
+    this._wakeTimer = 0;
+    this._waterMotionMode = 'land';
     this._motionFXState = {mode:'land',airborne:false,normalizedSpeed:0};
 
     this.echoes = new Map();
@@ -885,6 +887,7 @@ export class AelysScene {
     return {
       groundHeight,
       waterLevel: WORLD.waterLevel,
+      surfaceHeight: this.water.userData.surfaceHeight(x,z,this.elapsed),
       current,
       submerged,
       region: groundHeight > -0.1
@@ -1091,6 +1094,8 @@ export class AelysScene {
     const dt = THREE.MathUtils.clamp(Number(delta) || 0, 0, 0.08);
     this.elapsed = Number.isFinite(elapsed) ? elapsed : this.elapsed + dt;
     this.water.material.uniforms.uTime.value = this.elapsed;
+    this.water.material.uniforms.uResponseTime.value = this.elapsed;
+    this.water.userData.response.update(this.elapsed);
     this._updateMarineLife(dt);
     this.backdrop.userData.update(this.elapsed);
     this._updateEchoes(dt);
@@ -1101,10 +1106,26 @@ export class AelysScene {
 
   emitLumaMotion(type, position, strength) {
     if (type === 'land') this.motionFX.userData.land(position, strength);
-    if (type === 'splash') this.motionFX.userData.splash(position, strength);
+    if (type === 'splash') {
+      this.motionFX.userData.splash(position, strength);
+      this.water.userData.response.impact(position.x,position.z,strength);
+    }
   }
 
   updateLumaMotion(position, state, delta, enabled = true) {
+    this._wakeTimer += delta;
+    const nearSurface = position.y > WORLD.waterLevel - .65;
+    if (enabled && state.mode !== 'land' && !state.airborne && nearSurface) {
+      if (this._waterMotionMode !== state.mode && this._waterMotionMode !== 'land') {
+        this.water.userData.response.impact(position.x,position.z,.30);
+        this.motionFX.userData.splash(position,.18);
+      }
+      if (this._wakeTimer > .28 && (state.horizontalSpeed > .12 || Math.abs(state.verticalSpeed) > .15)) {
+        this.water.userData.response.impact(position.x,position.z,.08+state.normalizedSpeed*.16);
+        this._wakeTimer=0;
+      }
+    }
+    this._waterMotionMode=state.mode;
     const fx = this._motionFXState;
     fx.mode = state.mode; fx.airborne = state.airborne;
     fx.normalizedSpeed = enabled ? state.normalizedSpeed : 0;

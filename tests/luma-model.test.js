@@ -71,3 +71,86 @@ test('short fur follows the shared rig and flattens after immersion',()=>{
     disposeLumaProxy(luma);
   }
 });
+
+test('middle rig preserves the bind pose and foreflipper placement',()=>{
+  for(const highDetail of [false,true]){
+    const luma=createLumaProxy({highDetail,scale:.62}),body=luma.getObjectByName('Luma continuous skin');
+    const middle=body.skeleton.bones[3],weights=body.geometry.getAttribute('skinWeight');
+    assert.equal(body.skeleton.bones.length,4);assert.equal(middle.parent,body.skeleton.bones[0]);
+    assert.ok(Array.from({length:weights.count},(_,i)=>weights.getW(i)).some(w=>w>.5));
+    luma.updateMatrixWorld(true);body.skeleton.update();
+    const expected=new THREE.Vector3(),actual=new THREE.Vector3(),positions=body.geometry.getAttribute('position');
+    for(let i=0;i<positions.count;i+=31){
+      expected.fromBufferAttribute(positions,i);body.getVertexPosition(i,actual);
+      assert.ok(expected.distanceTo(actual)<1e-5);
+    }
+    const front=[];luma.traverse(o=>{if(o.name==='Luma shoulder joint')front.push(o);});
+    assert.equal(front.length,2);
+    for(const joint of front){
+      assert.equal(joint.parent,middle);
+      expected.set(Math.sign(joint.position.x)*.32,.24,.42).multiplyScalar(.62);
+      joint.getWorldPosition(actual);assert.ok(expected.distanceTo(actual)<1e-6);
+    }
+    disposeLumaProxy(luma);
+  }
+});
+
+test('jump poses leave the shadow at shore height with finite, volume-preserving deformation',()=>{
+  const scale=.62,baseY=1.52,luma=createLumaProxy({scale,highDetail:false});
+  const body=luma.getObjectByName('Luma continuous skin'),shadow=luma.getObjectByName('Luma soft contact shadow');
+  const world=new THREE.Vector3(),vertex=new THREE.Vector3();luma.rotation.y=.37;
+  for(const state of [
+    {jumpStage:'anticipation',jumpPhase:1,jumpHeight:0,landing:0,airborne:false},
+    {jumpStage:'air',jumpPhase:.42,jumpHeight:.3,landing:0,airborne:true},
+    {jumpStage:'landing',jumpPhase:0,jumpHeight:0,landing:1,airborne:false},
+    {jumpStage:'idle',jumpPhase:0,jumpHeight:0,landing:0,airborne:false},
+  ]){
+    luma.position.set(4,baseY+state.jumpHeight,-2);
+    for(let i=0;i<30;i++)luma.userData.update(1/60,{mode:'land',horizontalSpeed:2,gaitPhase:1.1,...state});
+    luma.updateMatrixWorld(true);body.skeleton.update();shadow.getWorldPosition(world);
+    assert.ok(Math.abs(world.y-(baseY+.016*scale))<1e-6);assert.equal(shadow.visible,true);
+    const core=body.skeleton.bones[0];
+    assert.ok(Math.abs(core.scale.x*core.scale.y*core.scale.z-1)<1e-8);
+    if(state.jumpStage==='anticipation')assert.ok(core.scale.y<.90&&core.scale.y>.86);
+    if(state.jumpStage==='landing')assert.ok(core.scale.y<.88&&core.scale.y>.84);
+    if(state.airborne){assert.equal(luma.userData.motion.groundPush,0);assert.ok(shadow.material.opacity<.8);}
+    luma.traverse(o=>assert.ok(o.matrixWorld.elements.every(Number.isFinite)));
+    for(let i=0;i<body.geometry.attributes.position.count;i+=37){
+      body.getVertexPosition(i,vertex);assert.ok(Number.isFinite(vertex.x+vertex.y+vertex.z)&&vertex.length()<5);
+    }
+  }
+  luma.userData.update(1/60,{mode:'land',overWater:true,jumpHeight:.3,airborne:true,jumpStage:'air'});
+  assert.equal(shadow.visible,false);
+  for(const mode of ['surface','underwater']){luma.userData.update(1/60,{mode});assert.equal(shadow.visible,false);}
+  disposeLumaProxy(luma);
+});
+
+test('distance gait drives the torso on shore and swimming banks with turns',()=>{
+  const luma=createLumaProxy({highDetail:false}),body=luma.getObjectByName('Luma continuous skin');
+  const core=body.skeleton.bones[0],middle=body.skeleton.bones[3];
+  luma.userData.update(0,{mode:'land',horizontalSpeed:3,gaitPhase:Math.PI/2});const forward=middle.rotation.x;
+  luma.userData.update(0,{mode:'land',horizontalSpeed:3,gaitPhase:Math.PI*1.5});
+  assert.ok(forward>.02&&middle.rotation.x<-.02);
+  luma.userData.update(0,{mode:'land',horizontalSpeed:0,speed:20,gaitPhase:Math.PI/2});
+  assert.ok(Math.abs(middle.rotation.x)<1e-9);
+  luma.userData.update(1/60,{mode:'land',horizontalSpeed:3,gaitPhase:Math.PI/2,airborne:true,jumpStage:'air'});
+  assert.ok(Math.abs(middle.rotation.x)<1e-9);
+  for(let i=0;i<120;i++)luma.userData.update(1/60,{mode:'underwater',horizontalSpeed:3,turn:1});
+  assert.ok(core.rotation.z<-.10);
+  luma.userData.update(1/60,{mode:'underwater',horizontalSpeed:3,turn:-1});assert.ok(core.rotation.z>.10);
+  disposeLumaProxy(luma);
+});
+
+test('surface pose partially immerses the belly while keeping Luma visible above water',()=>{
+  const luma=createLumaProxy({highDetail:false}),body=luma.getObjectByName('Luma continuous skin');
+  luma.position.y=-.14;
+  for(let i=0;i<120;i++)luma.userData.update(1/60,{mode:'surface',horizontalSpeed:0});
+  luma.updateMatrixWorld(true);body.skeleton.update();
+  const v=new THREE.Vector3();let min=Infinity,max=-Infinity;
+  for(let i=0;i<body.geometry.attributes.position.count;i+=17){
+    body.getVertexPosition(i,v);v.applyMatrix4(body.matrixWorld);
+    min=Math.min(min,v.y);max=Math.max(max,v.y);
+  }
+  assert.ok(min<-.03&&max>.2);
+  disposeLumaProxy(luma);
+});

@@ -26,6 +26,10 @@ const SVG = Object.freeze({
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9"/><path d="m14 7 5-4 2 6-7-2Z"/></svg>',
   dive:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8c3-3 6-3 9 0s6 3 9 0M5 13c2-2 4-2 6 0s4 2 6 0m-5 2v6m-3-3 3 3 3-3"/></svg>',
+  hop:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17Q12 3 20 17m-4-2 4 2 1-4M3 21h18"/></svg>',
+  ascend:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8c3-3 6-3 9 0s6 3 9 0M5 13c2-2 4-2 6 0s4 2 6 0M12 21v-6m-3 3 3-3 3 3"/></svg>',
   sprint:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 5 4 3-4 3m-6 2h8m-8 4h5M4 9h6"/></svg>',
   care:
@@ -71,6 +75,7 @@ export class MobileHUD {
       sprint: false,
       care: false,
     };
+    this.movementMode = 'land';
     this.registration = null;
     this.toastTimer = null;
     this.keyboardVectors = {
@@ -178,11 +183,11 @@ export class MobileHUD {
         </section>
 
         <section class="control-zone control-zone--actions" aria-label="Actions">
-          <button type="button" class="action-control action-control--sprint" data-control="sprint" aria-label="Nager vite">
+          <button type="button" class="action-control action-control--sprint" data-control="sprint" aria-label="Glisser plus vite" title="Glisser plus vite">
             ${SVG.sprint}<span>Sprint</span>
           </button>
-          <button type="button" class="action-control action-control--dive" data-control="dive" aria-label="Plonger ou remonter">
-            ${SVG.dive}<span>Plonger</span>
+          <button type="button" class="action-control action-control--dive" data-control="dive" aria-label="Petit bond sur le ventre" title="Petit bond sur le ventre">
+            ${SVG.hop}<span>Bondir</span>
           </button>
           <button type="button" class="action-control action-control--primary" data-control="action" aria-label="Interagir">
             ${SVG.action}<span>Action</span>
@@ -224,7 +229,7 @@ export class MobileHUD {
           </p>
           <ul class="intro-features" aria-label="Contenu de cette fondation">
             <li><span aria-hidden="true">◌</span> Explorer en paysage</li>
-            <li><span aria-hidden="true">≈</span> Nager et plonger</li>
+            <li><span aria-hidden="true">≈</span> Glisser et bondir</li>
             <li><span aria-hidden="true">✦</span> Retrouver 3 Échos</li>
           </ul>
           <button type="button" class="start-button" data-start>
@@ -253,6 +258,8 @@ export class MobileHUD {
       sound: find('[data-sound]'),
       objective: find('[data-objective]'),
       mode: find('[data-mode]'),
+      motionControl: find('[data-control="dive"]'),
+      sprintControl: find('[data-control="sprint"]'),
       oxygen: find('[data-vital="oxygen"]'),
       energy: find('[data-vital="energy"]'),
       echoCounter: find('[data-echo-counter]'),
@@ -556,6 +563,24 @@ export class MobileHUD {
     if (!registration?.waiting) return;
     this.registration = registration;
     this.refs.update.hidden = false;
+  }
+
+  /** Update the same motion button so hold listeners and focus persist. */
+  setMovementMode(mode = 'land') {
+    const nextMode = mode === 'surface' || mode === 'underwater' ? mode : 'land';
+    if (this.movementMode === nextMode) return;
+    this.movementMode = nextMode;
+    const settings = {
+      land: {label:'Bondir',aria:'Petit bond sur le ventre',icon:SVG.hop},
+      surface: {label:'Plonger',aria:'Plonger sous la surface',icon:SVG.dive},
+      underwater: {label:'Remonter',aria:'Remonter à la surface',icon:SVG.ascend},
+    }[nextMode];
+    this.refs.motionControl.innerHTML = `${settings.icon}<span>${settings.label}</span>`;
+    this.refs.motionControl.setAttribute('aria-label',settings.aria);
+    this.refs.motionControl.title = settings.aria;
+    const sprintLabel = nextMode === 'land' ? 'Glisser plus vite' : 'Nager plus vite';
+    this.refs.sprintControl.setAttribute('aria-label',sprintLabel);
+    this.refs.sprintControl.title = sprintLabel;
   }
 
   setVitals({ oxygen, energy, mode } = {}) {

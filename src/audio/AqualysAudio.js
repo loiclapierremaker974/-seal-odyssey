@@ -3,6 +3,9 @@
 // No audio assets, network requests, timers, or automatic playback are used.
 
 const CUES = {
+  hop: [{frequency:296,offset:0,duration:.18,level:.012}],
+  land: [{frequency:128,offset:0,duration:.14,level:.009}],
+  splash: [{frequency:440,offset:0,duration:.25,level:.010},{frequency:294,offset:.04,duration:.22,level:.008}],
   echo: [
     { frequency: 523.25, offset: 0, duration: 0.75, level: 0.035 },
     { frequency: 783.99, offset: 0.11, duration: 0.8, level: 0.022 },

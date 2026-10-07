@@ -13,7 +13,7 @@ Aelys has more sharply sculpted rock shelves and fissures, colored limestone str
 
 Warmer direct sunlight, a clearer blue sky, lighter atmospheric haze, fine sand ripples, small pebbles and narrower grass blades improve the shore. The playable movement, water, care, Echoes, quests, optional audio and local saves are preserved.
 
-Version 0.4.0 adds distance-driven belly movement, a flexible mid-body bone and small ballistic hops (0.3 m nominal height, 0.5 s nominal flight). Landings resample terrain after horizontal collisions; lower terrain extends flight, shore contacts enter water, held inputs require release before a fresh vertical action. Care waits until a hop finishes. Bounded contact particles and surface rings share resources; the scene disposes them once. Water keeps analytical reflections with a finer shore foam.
+Version 0.4.0 adds distance-driven belly movement, a flexible mid-body bone and small ballistic hops (0.3 m nominal height, 0.5 s nominal flight). Landings resample terrain after horizontal collisions; lower terrain extends flight, shore contacts enter water, held inputs require release before a fresh vertical action. Care waits until a hop finishes. Bounded contact particles and surface rings share resources; the scene disposes them once. Water keeps analytical reflections with finer shore foam. A bounded impact pool deforms the actual surface and its normals; the same height response drives buoyancy. Entry, swimming and shallow dives disturb water and then decay. The belly is partly submerged at surface rest. This remains a height-field approximation, rather than a complete fluid simulation.
 
 ## Verification and real captures
 

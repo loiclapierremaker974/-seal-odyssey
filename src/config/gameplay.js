@@ -51,11 +51,11 @@ export const ECHOES = Object.freeze([
 ]);
 
 export const MOVEMENT = Object.freeze({
-  landSpeed: 3.25,
+  landSpeed: 1.65,
   surfaceSpeed: 3.8,
   underwaterSpeed: 4.25,
   sprintMultiplier: 1.65,
-  landAcceleration: 11,
+  landAcceleration: 8,
   waterAcceleration: 7,
   underwaterAcceleration: 5.5,
   landDrag: 9,
@@ -65,9 +65,18 @@ export const MOVEMENT = Object.freeze({
   diveSpeed: 2.8,
   ascendSpeed: 2.35,
   buoyancy: 0.34,
-  surfaceFloatHeight: 0.12,
+  surfaceFloatHeight: -0.14,
   bodyClearance: 0.025,
   maxDepth: -5.2,
+  surfaceRiseAllowance: 0.06,
+  landStrideLength: 0.74,
+  swimStrideLength: 1.8,
+  jumpAnticipation: 0.12,
+  jumpFlightTime: 0.5,
+  jumpLanding: 0.25,
+  jumpGravity: 9.6,
+  jumpVelocity: 2.4,
+  jumpForwardImpulse: 0.55,
 });
 
 export const VITALS = Object.freeze({

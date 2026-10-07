@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { WaterResponse, sampleAelysSurface } from './WaterResponse.js';
 
 /**
  * One-pass ocean for the Aelys prototype. Reflections are an analytical sky
@@ -35,7 +36,8 @@ export function createAelysWater({
   seabed.unpackAlignment = 1;
   seabed.needsUpdate = true;
 
-  const segments = lowPower ? 34 : 62;
+  const response = new WaterResponse({capacity:lowPower?4:8});
+  const segments = lowPower ? 96 : 176;
   const geometry = new THREE.PlaneGeometry(size, size, segments, segments);
   geometry.rotateX(-Math.PI / 2);
   const material = new THREE.ShaderMaterial({
@@ -47,6 +49,8 @@ export function createAelysWater({
     uniforms: {
       ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog),
         uTime: { value: 0 },
+        uImpacts: { value: response.impacts },
+        uResponseTime: { value: 0 },
         uSeabed: { value: seabed },
         uWorldSize: { value: size },
         uWaterLevel: { value: waterLevel },
@@ -61,6 +65,27 @@ export function createAelysWater({
     },
     vertexShader: `
       uniform float uTime;
+      uniform vec4 uImpacts[8];
+      uniform float uResponseTime;
+      vec3 waterResponse(vec2 p) {
+        float height=0.0;vec2 gradient=vec2(0.0);
+        for(int i=0;i<8;i++) {
+          vec4 impact=uImpacts[i];float age=uResponseTime-impact.z;
+          if(impact.w<=0.0 || age<0.0 || age>2.8)continue;
+          vec2 radial=p-impact.xy;float distance=length(radial);
+          float offset=distance-age*2.65,width=.20+age*.11;
+          float envelope=.078*impact.w*exp(-age*1.35)*exp(-offset*offset/(width*width));
+          float ring=envelope*sin(offset*8.5);
+          float dent=-.115*impact.w*exp(-distance*distance/.30)*exp(-age*5.5);
+          height+=ring+dent;
+          float derivative=envelope*(8.5*cos(offset*8.5)-2.0*offset/(width*width)*sin(offset*8.5))
+            -2.0*distance/.30*dent;
+          gradient+=radial/max(.001,distance)*derivative;
+        }
+        if(abs(height)>=.24)gradient=vec2(0.0);
+        return vec3(clamp(height,-.24,.24),gradient);
+      }
+
       varying vec3 vWorldPosition;
       #include <fog_pars_vertex>
       void main() {
@@ -68,6 +93,7 @@ export function createAelysWater({
         transformed.y += sin(position.x * .34 + uTime * .72) * .075;
         transformed.y += cos(position.z * .43 - uTime * .56) * .052;
         transformed.y += sin((position.x + position.z) * .77 + uTime) * .022;
+        transformed.y += waterResponse(position.xz).x;
         vec4 world = modelMatrix * vec4(transformed, 1.0);
         vWorldPosition = world.xyz;
         vec4 mvPosition = viewMatrix * world;
@@ -77,6 +103,27 @@ export function createAelysWater({
     `,
     fragmentShader: `
       uniform float uTime;
+      uniform vec4 uImpacts[8];
+      uniform float uResponseTime;
+      vec3 waterResponse(vec2 p) {
+        float height=0.0;vec2 gradient=vec2(0.0);
+        for(int i=0;i<8;i++) {
+          vec4 impact=uImpacts[i];float age=uResponseTime-impact.z;
+          if(impact.w<=0.0 || age<0.0 || age>2.8)continue;
+          vec2 radial=p-impact.xy;float distance=length(radial);
+          float offset=distance-age*2.65,width=.20+age*.11;
+          float envelope=.078*impact.w*exp(-age*1.35)*exp(-offset*offset/(width*width));
+          float ring=envelope*sin(offset*8.5);
+          float dent=-.115*impact.w*exp(-distance*distance/.30)*exp(-age*5.5);
+          height+=ring+dent;
+          float derivative=envelope*(8.5*cos(offset*8.5)-2.0*offset/(width*width)*sin(offset*8.5))
+            -2.0*distance/.30*dent;
+          gradient+=radial/max(.001,distance)*derivative;
+        }
+        if(abs(height)>=.24)gradient=vec2(0.0);
+        return vec3(clamp(height,-.24,.24),gradient);
+      }
+
       uniform sampler2D uSeabed;
       uniform float uWorldSize;
       uniform float uWaterLevel;
@@ -98,6 +145,8 @@ export function createAelysWater({
         // Small optical ripples add detail without increasing mesh density.
         hx += cos(p.x * 5.6 + p.y * 2.1 + uTime * 1.4) * .018;
         hz += cos(p.y * 6.2 - p.x * 1.7 - uTime * 1.2) * .016;
+        vec3 responseSlope = waterResponse(p);
+        hx += responseSlope.y; hz += responseSlope.z;
         vec3 normal = normalize(vec3(-hx, 1.0, -hz));
         if (!gl_FrontFacing) normal = -normal;
         vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
@@ -137,6 +186,8 @@ export function createAelysWater({
   water.name = 'Aelys depth-aware animated ocean';
   water.position.y = waterLevel;
   water.renderOrder = 4;
+  water.userData.response = response;
+  water.userData.surfaceHeight = (x,z,time) => waterLevel + sampleAelysSurface(x,z,time,response);
   return water;
 }
 

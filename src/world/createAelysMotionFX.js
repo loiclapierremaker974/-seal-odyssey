@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // Bounded reusable contact particles; no geometry is allocated during motion.
-export function createAelysMotionFX({ lowPower = false, waterLevel = 0 } = {}) {
+export function createAelysMotionFX({ lowPower = false, waterLevel = 0, surfaceHeight } = {}) {
   const group = new THREE.Group(), count = lowPower ? 36 : 72;
   const position = new Float32Array(count * 3), velocity = new Float32Array(count * 3);
   const colour = new Float32Array(count * 3), life = new Float32Array(count);
@@ -91,7 +91,7 @@ export function createAelysMotionFX({ lowPower = false, waterLevel = 0 } = {}) {
       if(!r.mesh.visible)continue; r.age+=dt; const u=THREE.MathUtils.clamp(r.age/r.duration,0,1);
       r.mesh.visible=u<1; r.mesh.scale.setScalar(.12+u*r.radius); r.mesh.material.opacity=r.opacity*(1-u)*(1-u);
       const x=r.mesh.position.x,z=r.mesh.position.z;
-      r.mesh.position.y=waterLevel+.065+Math.sin(x*.34+time*.72)*.075+Math.cos(z*.43-time*.56)*.052+Math.sin((x+z)*.77+time)*.022;
+      r.mesh.position.y=surfaceHeight ? surfaceHeight(x,z)+.035 : waterLevel+.065+Math.sin(x*.34+time*.72)*.075+Math.cos(z*.43-time*.56)*.052+Math.sin((x+z)*.77+time)*.022;
     }
     for(const name of ['position','color','aLife','aSize']) geometry.attributes[name].needsUpdate=true;
   }
