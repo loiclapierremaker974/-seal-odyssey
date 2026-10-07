@@ -108,7 +108,7 @@ export function createLushAelys({lowPower=false,compact=false,seed=8173,position
   function landPlacements(count,spread,size,flatten=1){
     const result=[];
     for(let n=0;n<count*18&&result.length<count;n++){
-      const centre=centres[result.length%centres.length],a=random()*Math.PI*2,r=Math.sqrt(random())*spread,x=centre.x+Math.cos(a)*r,z=centre.z+Math.sin(a)*r,y=groundAt(x,z);
+      const centre=centres[n%centres.length],a=random()*Math.PI*2,r=Math.sqrt(random())*spread,x=centre.x+Math.cos(a)*r,z=centre.z+Math.sin(a)*r,y=groundAt(x,z);
       if(y<waterLevel+(compact?-.1:.13)||!allowed(x,z,true))continue;
       const scale=size*(.72+random()*.48);result.push({x,y:y+.025,z,scale,sy:scale*flatten,yaw:random()*Math.PI*2});
     }return result;
