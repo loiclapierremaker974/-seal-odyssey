@@ -18,7 +18,7 @@ concurrency:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       VITE_BASE_PATH: /-seal-odyssey/
       VITE_BUILD_ID: validation-${{ github.sha }}

@@ -32,7 +32,8 @@ const report = {
   schemaVersion: 1, startedAt: new Date().toISOString(),
   gitSha: process.env.GITHUB_SHA || null, appURL,
   backendRequested: 'Chromium ANGLE SwiftShader',
-  scope: 'Production startup, real GLSL compilation/linking, draw calls, actual keyboard/touch belly hops, shore/water transitions and UI interactions. No visual quality, frame-rate or real-device assertion.',
+  scope: 'Production startup, real GLSL compilation/linking, draw calls, actual keyboard/touch belly hops, shore/water transitions and UI interactions. The capture context retains its drawing buffer for screenshots; no visual quality, frame-rate or real-device assertion.',
+  capturePolicy:{testOnlyFramebufferRetention:true,screenshotSource:'Chromium native view',rendererSourceChanged:false},
   cases: [], failures: [],
 };
 let preview, browser;
@@ -53,6 +54,15 @@ async function waitForPreview() {
     await delay(250);
   }
   throw new Error('Production preview did not become ready within 30 seconds.');
+}
+// Capture-only context option: retain the actual rendered pixels while RAF
+// is held at the belly-hop apex. Production renderer settings are unchanged.
+function installCaptureContext() {
+  const original=HTMLCanvasElement.prototype.getContext;
+  HTMLCanvasElement.prototype.getContext=function(type,options,...args){
+    return original.call(this,type,this.classList.contains('game-canvas')&&['webgl','webgl2','experimental-webgl'].includes(type)
+      ?{...options,preserveDrawingBuffer:true}:options,...args);
+  };
 }
 function installWebGLProbe() {
   const probe = {
@@ -300,6 +310,7 @@ async function runScenario(scenario) {
   await page.addInitScript(() => {
     for (const [name, value] of [['hardwareConcurrency', 8], ['deviceMemory', 8]]) Object.defineProperty(navigator, name, { configurable: true, get: () => value });
   });
+  await page.addInitScript(installCaptureContext);
   await page.addInitScript(installWebGLProbe);
   await page.addInitScript(installCaptureGate);
   await page.addInitScript(installMotionTrace);
@@ -316,6 +327,16 @@ async function runScenario(scenario) {
       else document.querySelector('canvas.game-canvas')?.getContext('webgl2')?.finish();
     },phase!=='care');
     try {
+      const pixels=await page.evaluate(()=>{
+        const canvas=document.querySelector('canvas.game-canvas'),gl=canvas?.getContext('webgl2');
+        if(!gl)return null;
+        const size=8,data=new Uint8Array(size*size*4);
+        gl.readPixels(Math.max(0,Math.floor(canvas.width/2)-4),Math.max(0,Math.floor(canvas.height/2)-4),size,size,gl.RGBA,gl.UNSIGNED_BYTE,data);
+        let opaque=0,lit=0;
+        for(let i=0;i<data.length;i+=4){if(data[i+3]>240)opaque++;if(data[i]+data[i+1]+data[i+2]>12)lit++;}
+        return {opaque,lit,retained:gl.getContextAttributes().preserveDrawingBuffer};
+      });
+      assert.ok(pixels?.retained&&pixels.opaque>40&&pixels.lit>16,'Capture must contain the actual opaque 3D framebuffer: '+phase);
       // Capture the compositor's actual frozen frame directly. Playwright's
       // screenshot preparation waits for extra animation frames during layout
       // changes, which cannot complete while the apex/capture RAF gate is held.
@@ -325,7 +346,7 @@ async function runScenario(scenario) {
           const image = await Promise.race([
             captureSession.send('Page.captureScreenshot', {
               format, ...(format === 'jpeg' ? {quality:82} : {}),
-              fromSurface:phase!=='care', captureBeyondViewport:true,
+              fromSurface:false, captureBeyondViewport:true,
               clip:{x:0,y:0,...scenario.options.viewport,scale:1},
             }),
             new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('Compositor capture timed out: '+phase)),45000);}),

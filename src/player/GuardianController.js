@@ -529,6 +529,7 @@ export class GuardianController {
     if (this.state.mode === 'underwater') {
       desired.y = Math.min(desired.y, (cameraSample.surfaceHeight ?? cameraSample.waterLevel) - 0.08);
     }
+    this.environment?.resolveCameraPosition?.(target,desired);
     return { target, desired };
   }
 
@@ -543,6 +544,8 @@ export class GuardianController {
     const { target, desired } = this._cameraDestination();
     this._cameraLookTarget.lerp(target, expStep(CAMERA.targetResponsiveness, delta));
     this.camera.position.lerp(desired, expStep(CAMERA.positionResponsiveness, delta));
+    // Use Luma's current target so smoothing cannot retain an obstructed view.
+    this.environment?.resolveCameraPosition?.(target,this.camera.position);
     this.camera.lookAt(this._cameraLookTarget);
   }
 

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CameraObstacles } from './CameraObstacles.js';
 import { resolveCoastalMovement } from './coastalCollision.js';
 import { createAelysBackdrop } from './createAelysBackdrop.js';
 import { createAelysMotionFX } from './createAelysMotionFX.js';
@@ -522,6 +523,22 @@ export class AelysScene {
     this.camera.name = 'Guardian follow camera';
 
     this._buildWorld();
+    this._cameraObstacles = new CameraObstacles({clearance:.30});
+    this._cameraObstacles.add(this._shorelineRocks);
+    // Bounds select nearby candidates; the rendered meshes decide contact.
+    const cliffBounds = this.backdrop.userData.blockers.map(blocker =>
+      new THREE.Box3(
+        new THREE.Vector3(blocker.x-blocker.broadRadius,blocker.bottom,blocker.z-blocker.broadRadius),
+        new THREE.Vector3(blocker.x+blocker.broadRadius,blocker.top,blocker.z+blocker.broadRadius),
+      ));
+    this._cameraObstacles.add(this.backdrop.getObjectByName('Falaises stratifiées'),{bounds:cliffBounds});
+    this._cameraObstacles.add(this.backdrop.getObjectByName('Maçonnerie ancienne'));
+    this.ancientSite.traverse(object=>{
+      if(!object.isMesh)return;
+      const materials=Array.isArray(object.material)?object.material:[object.material];
+      if(materials.every(material=>material&&!material.transparent))
+        this._cameraObstacles.add(object,{dynamic:true});
+    });
     this.resize();
     if (globalThis.ResizeObserver && this.container) {
       this._resizeObserver = new ResizeObserver(() => this.resize());
@@ -643,6 +660,7 @@ export class AelysScene {
     rockMesh.castShadow = !this.lowPower;
     rockMesh.receiveShadow = true;
     this.scene.add(rockMesh);
+    this._shorelineRocks=rockMesh;
 
     const pebbleCount=this.lowPower?90:260;
     const pebbles=new THREE.InstancedMesh(rockGeometry,rockMaterial,pebbleCount);
@@ -1144,6 +1162,10 @@ export class AelysScene {
     if (!this._disposed) this.renderer.render(this.scene, this.camera);
   }
 
+
+  resolveCameraPosition(target,position) {
+    return this._cameraObstacles.resolve(target,position);
+  }
 
   /** Resolve solid distant coastline before the camera and animation update. */
   resolveMovement(position, previous, radius = .4) {
