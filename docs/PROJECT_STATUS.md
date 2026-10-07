@@ -2,6 +2,18 @@
 
 Updated: 2026-10-07
 
+## Original illustrated encounters (0.7.0)
+
+Original generated environment plates now supply the shore, submerged lagoon and ancient marine garden encounter settings. The creator explicitly accepted the shore plate as the world art direction. Luma uses a transparent six-pose atlas in the fixed lateral encounters; current ribbons, attacks, impacts and tactical turns remain live. Six original SVG action medallions and compact translucent controls improve the finish.
+
+Measured UV regions and exclusion boxes isolate the six poses without modifying the PNG. Assets load once and are owned by the loader; turns reuse their GPU resources. Encounters wait for their art. Victory, trust, persistent memory, withdrawal and exact exploration return preserve the existing game behavior.
+
+Free exploration and care still use procedural 3D Luma and terrain. They have not yet been rebuilt to the approved environment plate's detail. This release establishes that visual direction in playable battles.
+
+This art branch validates all domain tests and a production build, then actual encounter turns in desktop, emulated touch landscape and portrait. The default browser script retains full exploration and swimming checks; those passed in 0.6.0 for unchanged exploration code. Emulation does not measure real phone performance.
+
+The source PDFs mentioned in chat could not be reopened in this runtime. The repository's CANON_SNAPSHOT was verified, and is an excerpt rather than a replacement for the source dossier. Complete dossier compliance is not asserted.
+
 ## Living-shore art iteration (0.6.0)
 
 Luma now uses a lower elongated torso and rounded head, fixed head translation during swimming, smaller inset brown eyes and closed non-crossing flipper tips. Four rig bone names and care/motion APIs remain compatible. Camera targets follow the revised height.

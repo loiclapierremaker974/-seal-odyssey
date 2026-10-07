@@ -273,6 +273,7 @@ async function testCombat(page,screenshot,scenario) {
   assert.equal(await panel.locator('[data-battle-action]').count(),6);
   assert.ok(await panel.locator('[data-battle-intent]').textContent());
   assert.equal(await panel.getAttribute('data-battle-art'),'illustrated','The first battle frame must use the loaded original art.');
+  await page.waitForFunction(()=>{const icons=[...document.querySelectorAll('.battle-action__art')];return icons.length===6&&icons.every(n=>n.complete&&n.naturalWidth>0);});
   const icons=await panel.locator('.battle-action__art').evaluateAll(nodes=>nodes.map(n=>({loaded:n.complete&&n.naturalWidth>0,path:n.getAttribute('src')})));
   assert.equal(icons.length,6);assert.ok(icons.every(n=>n.loaded&&n.path.startsWith('/-seal-odyssey/assets/battle-icons/')));
   await screenshot('combat');

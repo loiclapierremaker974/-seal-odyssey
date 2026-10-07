@@ -2,6 +2,18 @@
 
 Les changements notables de cette reprise locale sont consignés ici. Le format suit l'esprit de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et les versions applicatives suivent le versionnage sémantique quand il devient pertinent.
 
+## [0.7.0] - 2026-10-07
+
+### Amélioré
+
+- Trois décors illustrés originaux pour les rencontres : rivage, lagune sous-marine et jardin marin ancien ; le rivage est validé comme référence artistique.
+- Six poses détaillées originales de Luma, avec découpage mesuré, gestes animés et effets de courant en direct.
+- Six icônes SVG d'action et interface compacte et translucide ; commandes clavier, focus et contrôles tactiles conservés.
+- Chargement préalable des illustrations et propriétaire unique des textures.
+- Vérification des tours et du retour à l'exploration sur ordinateur, tactile paysage et portrait.
+
+L'exploration libre et les soins restent en 3D procédurale : ils doivent encore atteindre le détail du décor validé.
+
 ## [0.6.0] - 2026-10-07
 
 ### Amélioré
