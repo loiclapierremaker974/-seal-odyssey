@@ -6,6 +6,7 @@ z-index:95;
 inset:0;
 display:grid;
 grid-template-rows:auto minmax(0,1fr) auto;
+grid-template-columns:minmax(0,1fr);
 width:100%;
 height:100%;
 min-height:100dvh;
@@ -658,3 +659,7 @@ color:#ffe3a8;
 .battle-action__meta{grid-column:2;grid-row:2;justify-content:space-between;gap:1px 4px;font-size:.57rem}.battle-result{min-height:56px;padding:8px 12px}
 }
 @media(prefers-contrast:more){.battle-header,.battle-command{background:#123b4a}.battle-action{background:#215466;border-color:#e1f9e7}.battle-action:disabled{opacity:.8;border-style:dashed}.battle-intent,.battle-combo,.battle-hint,.battle-action__meta small{color:#f0fff5}}
+
+/* Keep long intent and feedback text inside the viewport in portrait. */
+.battle-header,.battle-command{min-width:0;max-width:100%}
+.battle-command{grid-template-columns:minmax(0,1fr)}

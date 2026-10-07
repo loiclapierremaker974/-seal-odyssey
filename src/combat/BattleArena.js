@@ -178,7 +178,9 @@ export class BattleArena {
     const aspect=this.width/this.height;
     let halfH=1.95*this.height/(2*pixels),halfW=halfH*aspect;
     if(halfW<5.1){halfW=5.1;halfH=halfW/aspect;}
-    const center=portrait?clamp((header+free*.5)/this.height,.3,.6):.42;
+    // The covered shore artwork places its sand below the middle of the view.
+    // Keep the feet on that sand, while reserving room for portrait commands.
+    const center=portrait?clamp((this.height-footer-48)/this.height,.42,.60):.42;
     const shift=(center*2-1)*halfH;
     Object.assign(this.camera,{left:-halfW,right:halfW,top:halfH+shift,bottom:-halfH+shift});
     this.camera.updateProjectionMatrix();this.camera.updateMatrixWorld(true);

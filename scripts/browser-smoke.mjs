@@ -261,6 +261,23 @@ async function testSwimming(page, screenshot) {
   return {modes:['land','surface','underwater','surface'],input:'ArrowUp/Shift, Q, Space'};
 }
 
+async function assertCombatLayout(panel,phase){
+  const layout=await panel.evaluate(element=>({
+    viewport:{width:window.innerWidth,height:window.innerHeight},
+    buttons:[...element.querySelectorAll('button')].filter(n=>n.getClientRects().length).map(n=>{
+      const r=n.getBoundingClientRect(),hit=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
+      return {label:n.getAttribute('aria-label')||n.textContent.trim(),left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,unobstructed:hit?.closest('button')===n};
+    }),
+  }));
+  assert.ok(layout.buttons.length>0,'Combat must expose commands during '+phase);
+  for(const button of layout.buttons){
+    assert.ok(button.left>=-1&&button.right<=layout.viewport.width+1&&button.top>=-1&&button.bottom<=layout.viewport.height+1,
+      'Every combat command must fit in the viewport during '+phase+': '+JSON.stringify(button));
+    assert.ok(button.width>=44&&button.height>=44,'Combat controls must remain touch-sized: '+button.label);
+    assert.ok(button.unobstructed,'Combat command must be reachable without an overlay: '+button.label);
+  }
+}
+
 async function testCombat(page,screenshot,scenario) {
   const panel=page.locator('.battle-panel');
   await page.locator('canvas.game-canvas').click({position:{x:10,y:10}});
@@ -276,6 +293,7 @@ async function testCombat(page,screenshot,scenario) {
   await page.waitForFunction(()=>{const icons=[...document.querySelectorAll('.battle-action__art')];return icons.length===6&&icons.every(n=>n.complete&&n.naturalWidth>0);});
   const icons=await panel.locator('.battle-action__art').evaluateAll(nodes=>nodes.map(n=>({loaded:n.complete&&n.naturalWidth>0,path:n.getAttribute('src')})));
   assert.equal(icons.length,6);assert.ok(icons.every(n=>n.loaded&&n.path.startsWith('/-seal-odyssey/assets/battle-icons/')));
+  await assertCombatLayout(panel,'active');
   await screenshot('combat');
   const used=[];
   const perform=async id=>{
@@ -296,6 +314,7 @@ async function testCombat(page,screenshot,scenario) {
     await perform(id);
   }
   assert.equal(await panel.getAttribute('data-battle-state'),'victory','The shore manifestation must be appeasable using the visible actions.');
+  await assertCombatLayout(panel,'victory');
   await screenshot('combat-victory');
   if(scenario.options.hasTouch)await panel.locator('[data-battle-close]').tap();else await panel.locator('[data-battle-close]').click();
   await panel.waitFor({state:'hidden'});
