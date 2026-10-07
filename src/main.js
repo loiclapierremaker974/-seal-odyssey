@@ -1,28 +1,32 @@
 import './styles.css';
 import './ui/battle.css';
+import './ui/islands.css';
+import * as THREE from 'three';
+import { IslandNavigator } from './ui/IslandNavigator.js';
+import { ISLANDS, EXPLORATION_ENCOUNTERS, islandById } from './world/islandDefinitions.js';
 
 import { BattleArena } from './combat/BattleArena.js';
 import { ARENA_ILLUSTRATIONS } from './combat/arenaIllustrations.js';
 import { CombatSystem } from './combat/CombatSystem.js';
-import { ENCOUNTERS } from './combat/encounters.js';
+const ENCOUNTERS = EXPLORATION_ENCOUNTERS;
 import { EncounterDirector } from './combat/EncounterDirector.js';
 import { BattlePanel } from './ui/BattlePanel.js';
-import { createEncounterMarkers } from './world/createEncounterMarkers.js';
+
 
 import { AqualysAudio } from './audio/AqualysAudio.js';
 import { CareSystem } from './care/CareSystem.js';
 import { BUILD_VERSION, GameState } from './core/GameState.js';
 import { SaveStore } from './persistence/SaveStore.js';
-import { GuardianController } from './player/GuardianController.js';
+import { IslandController } from './player/IslandController.js';
 import { InputController } from './player/InputController.js';
 import { QuestSystem } from './quests/QuestSystem.js';
 import { CarePanel } from './ui/CarePanel.js';
 import createMobileHUD from './ui/MobileHUD.js';
-import { AelysScene } from './world/AelysScene.js';
-import { createLumaProxy } from './world/createLumaProxy.js';
+import { IslandScene } from './world/IslandScene.js';
+
 
 const APP_VERSION =
-  typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.7.0';
+  typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.8.0';
 const BUILD_ID =
   typeof __BUILD_ID__ !== 'undefined'
     ? __BUILD_ID__
@@ -38,7 +42,7 @@ function createCanvas() {
   const canvas = document.createElement('canvas');
   canvas.className = 'game-canvas';
   canvas.tabIndex = 0;
-  canvas.setAttribute('aria-label', "Vue 3D du Rivage d'Aelys");
+  canvas.setAttribute('aria-label', "Exploration d’Aqualys vue de haut");
   root.append(canvas);
   return canvas;
 }
@@ -54,6 +58,7 @@ function saveSoundPreference(enabled) {
 }
 
 function boot() {
+  root.classList.add('island-exploration');
   const canvas = createCanvas();
   const saveStore = new SaveStore();
   const loadedState = saveStore.load();
@@ -66,6 +71,9 @@ function boot() {
 
   let controller;
   let world;
+  let navigator;
+  let worldReady = false;
+  let travelling = false;
   let diveRoute = 'dive';
   let started = false;
   let pendingCare = false;
@@ -97,8 +105,10 @@ function boot() {
     mount: root,
     version: APP_VERSION,
     build: BUILD_ID,
+    requestFullscreen: false,
+    requestLandscape: false,
     onStart: () => {
-      if (started) return;
+      if (started || !worldReady) return;
       started = true;
       if (!audio.muted) {
         // start() is called synchronously in the start-button user gesture.
@@ -109,8 +119,9 @@ function boot() {
       }
       void preloadBattleIllustrations().catch(() => {});
       controller?.setEnabled(true);
-      hud.setBuildStatus(`P0 · v${APP_VERSION}`, 'ready');
-      hud.showToast("Bienvenue sur le Rivage d'Aelys", { tone: 'success' });
+      navigator?.setVisible(true);
+      hud.setBuildStatus(`v${APP_VERSION}`, 'ready');
+      hud.showToast('Bienvenue sur le Rivage d’Aelys. Explorez les chemins et les eaux.', { tone: 'success' });
     },
     onSound: async () => {
       if (soundTogglePending) return;
@@ -165,6 +176,8 @@ function boot() {
     mount: root,
     onClose: () => {
       careActive = false;
+      navigator?.setVisible(started);
+      clearMovementInput();
       hud.setCareMode(false);
       root.prepend(canvas);
       canvas.tabIndex = 0;
@@ -189,13 +202,15 @@ function boot() {
   });
 
   function openCare() {
-    if(battle||battleLoading)return;
+    if(!started||!worldReady||travelling||battle||battleLoading)return;
     if (controller?.state.mode === 'land' && controller.state.jumpStage !== 'idle') {
       pendingCare = true;
       return;
     }
     pendingCare = false;
     careActive = true;
+    navigator?.setVisible(false);
+    clearMovementInput();
     controller?.setEnabled(false);
     controller?.setCameraFocus({});
     hud.setCareMode(true);
@@ -227,10 +242,11 @@ function boot() {
   }
 
   async function openCombat(encounter) {
-    if(!started||battle||battleLoading||careActive||!controller.enabled||controller.state.jumpStage!=='idle')return;
+    if(!started||!worldReady||travelling||battle||battleLoading||careActive||!controller.enabled||controller.state.jumpStage!=='idle')return;
     battleLoading=true;
+    navigator?.setVisible(false);
     encounterDirector.suppressUntilExit(encounter.id);
-    pendingCare=false;controller.setEnabled(false);input.reset();
+    pendingCare=false;controller.setEnabled(false);clearMovementInput();
     setObjective('Le décor de la rencontre se prépare…');
     hud.showToast('La rencontre se prépare…',{duration:10000});
     canvas.setAttribute('aria-busy','true');
@@ -250,7 +266,7 @@ function boot() {
       audio.playCue('echo');
     } catch {
       if(!disposed){
-        battle=null;activeEncounter=null;controller.setEnabled(started);input.reset();
+        battle=null;activeEncounter=null;controller.setEnabled(started);clearMovementInput();navigator?.setVisible(started);
         hud.setVisible(true);
         hud.showToast('Le décor n’a pas pu être chargé. Revenez vers le courant pour réessayer.',{tone:'warning',duration:6500});
         syncProgressUI();
@@ -288,7 +304,7 @@ function boot() {
     gameState.updateLuma(data);
     luma.userData.setMood?.(gameState.lumaMood.state);
     encounterDirector.markResolved(activeEncounter.id);
-    encounterMarkers.userData.setResolved(encounterDirector.resolved);
+    world.setResolvedEncounterIds(encounterDirector.resolved);
     audio.playCue('site');
   }
 
@@ -296,9 +312,9 @@ function boot() {
     if(!battle||battleBusy||battle.getState().status==='active')return;
     const status=battle.getState().status;
     battlePanel.close();battleArena.close();
-    battle=null;activeEncounter=null;input.reset();
+    battle=null;activeEncounter=null;clearMovementInput();navigator?.setVisible(started);
     canvas.tabIndex=0;canvas.style.pointerEvents='';
-    canvas.setAttribute('aria-label',"Vue 3D du Rivage d'Aelys");
+    canvas.setAttribute('aria-label',"Exploration d’Aqualys vue de haut");
     hud.setVisible(true);controller.setEnabled(started);
     canvas.focus({preventScroll:true});
     syncProgressUI();
@@ -307,19 +323,19 @@ function boot() {
       'Vous reprenez l’exploration en sécurité.',{tone:status==='victory'?'success':'info',duration:4000});
   }
 
-  world = new AelysScene({ canvas, container: root });
-  const luma = createLumaProxy({ highDetail: !world.lowPower });
+  world = new IslandScene({ canvas, container: root });
+  const luma = new THREE.Group();
+  luma.name = 'Luma · exploration illustrée';
   world.getSpawnPosition(luma.position);
   world.add(luma);
-  const encounterMarkers=createEncounterMarkers(ENCOUNTERS,{sampleEnvironment:p=>world.getEnvironmentAt(p)});
-  encounterMarkers.userData.setResolved(encounterDirector.resolved);
-  world.scene.add(encounterMarkers);
-  world.setProgress({
-    echoIds: gameState.discoveredEchoIds,
-    siteRestored: gameState.siteActivated,
-  });
+  world.setResolvedEncounterIds(encounterDirector.resolved);
+  world.setProgress({ echoIds:gameState.discoveredEchoIds,siteRestored:gameState.siteActivated });
+  navigator = new IslandNavigator({mount:root,islands:ISLANDS,onTravel:travelToIsland});
+  navigator.setIsland('rivage');
+  navigator.setProgress({echoIds:gameState.discoveredEchoIds,siteRestored:gameState.siteActivated});
+  navigator.setVisible(false);
 
-  controller = new GuardianController({
+  controller = new IslandController({
     object: luma,
     camera: world.camera,
     input,
@@ -342,16 +358,63 @@ function boot() {
   });
   controller.setEnabled(false);
 
+  function clearMovementInput() {
+    input.setMove(0,0);input.setLook(0,0);
+    for(const name of ['action','dive','ascend','sprint'])input.setAction(name,false);
+    input.reset();
+  }
+
+  function travelToIsland(id) {
+    if(!started||!worldReady||disposed||battle||battleLoading||careActive||travelling)return;
+    const island=islandById(id);
+    if(!island||world.activeIsland.id===id)return;
+    travelling=true;pendingCare=false;controller.setEnabled(false);clearMovementInput();
+    navigator.setBusy(true);
+    if(world.setIsland(id)){
+      world.getSpawnPosition(luma.position);
+      controller.teleport(luma.position);
+      navigator.setIsland(id);
+      hud.setMovementMode(controller.state.mode);
+      syncProgressUI();
+      hud.showToast(island.name,{tone:'success'});
+      canvas.dispatchEvent(new CustomEvent('seal:island-change',{bubbles:true,detail:{id}}));
+    }
+    travelling=false;navigator.setBusy(false);controller.setEnabled(started);
+    canvas.focus({preventScroll:true});
+  }
+
+  const startButton=hud.refs.start;
+  const startMarkup=startButton.innerHTML;
+  startButton.disabled=true;
+  startButton.textContent='Les îles se préparent…';
+  const finishWorldLoading=()=>{
+    if(disposed)return;
+    worldReady=true;
+    world.getSpawnPosition(luma.position);
+    controller.teleport(luma.position);
+    hud.setMovementMode(controller.state.mode);
+    startButton.disabled=false;startButton.innerHTML=startMarkup;
+    canvas.dataset.worldArt='illustrated';
+    hud.setBuildStatus(`v${APP_VERSION}`,'ready');
+  };
+  world.ready.then(finishWorldLoading).catch(()=>{
+    if(disposed)return;
+    startButton.disabled=false;startButton.textContent='Réessayer le chargement';
+    startButton.addEventListener('click',()=>window.location.reload(),{once:true});
+    hud.showToast('Une île n’a pas pu être chargée. Réessayez pour poursuivre.',{tone:'warning',duration:15000});
+  });
+
   // Semantic movement events also support bounded browser integration checks.
   function emitMotionState(state) {
     canvas.dispatchEvent(new CustomEvent('seal:motion-state', {bubbles:true,detail:{
-      mode:state.mode,jumpStage:state.jumpStage,jumpPhase:state.jumpPhase,
+      islandId:world.activeIsland.id,heading:state.heading,mode:state.mode,jumpStage:state.jumpStage,jumpPhase:state.jumpPhase,
       jumpHeight:state.jumpHeight,grounded:state.grounded,
       x:luma.position.x,y:luma.position.y,z:luma.position.z,
     }}));
   }
 
   function handleWorldAction(result) {
+    if(!result)return;
     const encounter=encounterDirector.getNearby(luma.position);
     if (!result.success) {
       if(encounter){openCombat(encounter);return;}
@@ -361,6 +424,7 @@ function boot() {
         'echoes-required': `Il manque ${result.missing ?? 3} Echo(s).`,
         'already-collected': 'Cet Echo a deja ete ecoute.',
         'already-restored': 'Le Site Ancien rayonne deja.',
+        'dive-required': 'Cet Écho attend sous la surface : plongez avec Q ou le bouton Plonger.',
       };
       hud.showToast(messages[result.reason] ?? "L'interaction n'est pas encore possible.", {
         tone: 'warning',
@@ -421,6 +485,7 @@ function boot() {
 
   function syncProgressUI({ syncWorld = false } = {}) {
     hud.setEchoes(gameState.echoCount, gameState.requiredEchoCount);
+    navigator?.setProgress({echoIds:gameState.discoveredEchoIds,siteRestored:gameState.siteActivated});
     if (syncWorld) {
       world.setProgress({
         echoIds: gameState.discoveredEchoIds,
@@ -450,7 +515,7 @@ function boot() {
       Mode: state ? modeLabel(state.mode) : 'chargement',
       Entree: debugState.input,
       Sauvegarde: saveStore.usingFallback ? 'memoire temporaire' : 'locale versionnee',
-      Luma: 'modèle procédural · fiche Luma',
+      Luma: 'poses originales · exploration vue de haut',
       Confiance: `${Math.round(gameState.lumaTrust)}%`,
     });
   }
@@ -473,7 +538,7 @@ function boot() {
   hud.setSoundEnabled(!audio.muted);
   syncProgressUI({ syncWorld: true });
   luma.userData.setMood?.(gameState.lumaMood.state);
-  hud.setBuildStatus(`P0 · v${APP_VERSION}`, 'warning');
+  hud.setBuildStatus(`v${APP_VERSION}`, 'warning');
   if (loadedState) {
     hud.showToast('Progression locale restauree.', { tone: 'success' });
   } else if (saveStore.lastError) {
@@ -510,7 +575,7 @@ function boot() {
     const encounter=encounterDirector.update(luma.position,{enabled:started&&controller.enabled,
       airborne:controller.state.airborne,jumpStage:controller.state.jumpStage});
     if(encounter)openCombat(encounter);
-    encounterMarkers.userData.update(elapsed);
+
     world.update(delta, elapsed);
     world.updateLumaMotion(luma.position, controller.state, delta, controller.enabled);
     // Reuse a small payload: no audio nodes or buffers are allocated per frame.
@@ -548,6 +613,8 @@ function boot() {
     battlePanel.destroy();battleArena?.dispose();
     hud.destroy();
     controller.dispose({ disposeInput: true });
+    navigator?.destroy();
+    root.classList.remove('island-exploration');
     audio.dispose();
     world.dispose();
     canvas.remove();
@@ -570,7 +637,7 @@ try {
   root.innerHTML = `
     <main class="fatal-error" role="alert">
       <p>Fondation P0</p>
-      <h1>La scene 3D ne peut pas demarrer.</h1>
+      <h1>L’exploration ne peut pas démarrer.</h1>
       <p>Verifiez que WebGL est active, puis rechargez la page.</p>
       <pre></pre>
     </main>

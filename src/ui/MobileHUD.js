@@ -151,10 +151,12 @@ export class MobileHUD {
           type="button"
           aria-expanded="false"
           aria-controls="seal-debug-panel"
+          aria-label="Informations techniques"
           title="Afficher les informations techniques"
         >
           <span class="build-badge__dot" aria-hidden="true"></span>
-          <span>P0 · v${version}</span>
+          <svg class="build-badge__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 10.8v6M12 7.2v1.3" stroke-linecap="round"/></svg>
+          <span class="sr-only">P0 · v${version}</span>
         </button>
         </div>
       </header>
@@ -184,13 +186,13 @@ export class MobileHUD {
 
         <section class="control-zone control-zone--actions" aria-label="Actions">
           <button type="button" class="action-control action-control--sprint" data-control="sprint" aria-label="Glisser plus vite" title="Glisser plus vite">
-            ${SVG.sprint}<span>Sprint</span>
+            ${SVG.sprint}<span>Glisser</span>
           </button>
           <button type="button" class="action-control action-control--dive" data-control="dive" aria-label="Petit bond sur le ventre" title="Petit bond sur le ventre">
             ${SVG.hop}<span>Bondir</span>
           </button>
           <button type="button" class="action-control action-control--primary" data-control="action" aria-label="Interagir">
-            ${SVG.action}<span>Action</span>
+            ${SVG.action}<span>Interagir</span>
           </button>
           <button type="button" class="action-control action-control--care" data-control="care" aria-label="Prendre soin de Luma">
             ${SVG.care}<span>Soin</span>
@@ -209,6 +211,7 @@ export class MobileHUD {
           <span class="control-caption" aria-hidden="true">Caméra</span>
         </section>
       </main>
+      <p class="exploration-key-hint" aria-hidden="true">Flèches / WASD · E interagir · Espace bondir · Q plonger</p>
 
       <section class="portrait-notice glass-panel" role="status" aria-label="Orientation recommandée">
         <span class="phone-rotate" aria-hidden="true"></span>
@@ -222,20 +225,20 @@ export class MobileHUD {
           <p class="intro-eyebrow">Aqualys · Onde Première</p>
           <h1 id="intro-title"><span>Seal</span> Odyssey</h1>
           <p id="intro-description" class="intro-lead">
-            Accompagnez Luma du Rivage d’Aelys à la Lagune des Murmures. Écoutez les trois Échos et réveillez le Site Ancien.
+            Explorez librement les îles d’Aqualys avec Luma. Du Rivage d’Aelys à la Lagune des Murmures, retrouvez les trois Échos et réveillez le Site Ancien.
           </p>
           <p id="intro-source" class="source-warning">
             Prototype en cours de création : les personnages, les paysages et les sons évolueront au fil du développement.
           </p>
-          <ul class="intro-features" aria-label="Contenu de cette fondation">
-            <li><span aria-hidden="true">◌</span> Explorer en paysage</li>
-            <li><span aria-hidden="true">≈</span> Glisser et bondir</li>
+          <ul class="intro-features" aria-label="Explorer Aqualys">
+            <li><span aria-hidden="true">◌</span> Trois îles à explorer</li>
+            <li><span aria-hidden="true">≈</span> Nager et bondir</li>
             <li><span aria-hidden="true">✦</span> Retrouver 3 Échos</li>
           </ul>
           <button type="button" class="start-button" data-start>
             <span>Entrer dans Aqualys</span><span aria-hidden="true">→</span>
           </button>
-          <small>Son optionnel · Casque conseillé · v${version}</small>
+          <small>Son optionnel · Casque conseillé</small>
         </div>
       </section>
 
@@ -581,6 +584,7 @@ export class MobileHUD {
     const sprintLabel = nextMode === 'land' ? 'Glisser plus vite' : 'Nager plus vite';
     this.refs.sprintControl.setAttribute('aria-label',sprintLabel);
     this.refs.sprintControl.title = sprintLabel;
+    this.refs.sprintControl.querySelector('span').textContent = nextMode === 'land' ? 'Glisser' : 'Nager';
   }
 
   setVitals({ oxygen, energy, mode } = {}) {

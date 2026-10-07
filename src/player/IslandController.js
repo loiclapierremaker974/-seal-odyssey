@@ -23,7 +23,7 @@ export class IslandController{
  _readInput(){const i=this.input.getState()||{};let x=clamp(finite(i.move?.x),-1,1),y=clamp(finite(i.move?.y),-1,1);const length=Math.hypot(x,y);if(length>1){x/=length;y/=length;}return {move:{x,y},action:Boolean(i.action),dive:Boolean(i.dive),ascend:Boolean(i.ascend),sprint:Boolean(i.sprint)};}
  _drainPressedQueue(){for(const button of BUTTONS)this.input.consumePressed?.(button);}
  _synchronizeButtons(i=this._readInput()){for(const b of BUTTONS)this._buttons[b]=i[b];this._buttons.vertical=i.ascend||i.dive;this._drainPressedQueue();}
- _edges(i){const edges={};for(const b of BUTTONS)edges[b]=i[b]&&!this._buttons[b];edges.vertical=(i.ascend||i.dive)&&!this._buttons.vertical;this._synchronizeButtons(i);return edges;}
+ _edges(i){const edges={};for(const b of BUTTONS){const queued=Boolean(this.input.consumePressed?.(b));edges[b]=queued||(i[b]&&!this._buttons[b]);}edges.vertical=edges.ascend||edges.dive||((i.ascend||i.dive)&&!this._buttons.vertical);this._synchronizeButtons(i);return edges;}
  _setMode(mode){if(mode===this.state.mode)return;const previous=this.state.mode;this.state.mode=mode;this.onModeChange?.(mode,previous);}
  _setJumpStage(stage){Object.assign(this.state,{jumpStage:stage,jumpPhase:0,landing:stage==='landing'?1:0,airborne:stage==='air',grounded:this.state.mode==='land'&&stage!=='air'});this._jumpClock=0;}
  _resetJump(){this._setJumpStage('idle');this.state.jumpHeight=0;}
