@@ -32,10 +32,10 @@ scenarios.push({
 if(process.env.SEAL_SMOKE_CASE==='battle'){
  scenarios.splice(0,scenarios.length,scenarios.find(s=>s.name==='desktop-battle'),{
   name:'touch-battle',expectedQuality:'low',battle:true,
-  options:{viewport:{width:844,height:390},deviceScaleFactor:1,hasTouch:true,isMobile:true},
+  options:{viewport:{width:844,height:390},deviceScaleFactor:1,hasTouch:true,isMobile:true,userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'},
  },{
   name:'portrait-battle',expectedQuality:'low',battle:true,
-  options:{viewport:{width:390,height:844},deviceScaleFactor:1,hasTouch:true,isMobile:true},
+  options:{viewport:{width:390,height:844},deviceScaleFactor:1,hasTouch:true,isMobile:true,userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'},
  });
 }
 const report = {
@@ -456,9 +456,13 @@ try {
   preview.on('error', (error) => { previewError = error; });
   preview.on('exit', (code, signal) => { previewExit = { code, signal }; });
   await waitForPreview();
-  browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--window-size=960,540'] });
-  report.browserVersion = browser.version();
-  for (const scenario of scenarios) await runScenario(scenario);
+  for (const scenario of scenarios) {
+    const {width,height}=scenario.options.viewport;
+    browser=await chromium.launch({headless:true,args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--window-size='+width+','+height]});
+    report.browserVersion=browser.version();
+    await runScenario(scenario);
+    await browser.close();browser=null;
+  }
 } catch (error) {
   report.failures.push({ scenario: 'runner', ...serializeError(error) });
 } finally {

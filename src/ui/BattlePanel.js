@@ -10,12 +10,12 @@ const ELEMENT_LABELS = Object.freeze({
 });
 
 const ACTION_ICONS = Object.freeze({
-  'swift-wave': '<path d="M3 13c3-5 5 5 9 0s6 3 9-1M3 8c3-5 5 5 9 0s6 3 9-1M5 18h12"/>',
-  'strong-wave': '<path d="M3 18h18M4 15c4 0 4-10 9-10 4 0 5 4 2 6 3-1 5 1 5 4M8 18c0-3 2-5 5-5"/>',
-  guard: '<path d="m12 3 8 4v6c0 4-4 7-8 9-4-2-8-5-8-9V7l8-4Z"/><path d="m8 12 3 3 5-6"/>',
-  dodge: '<path d="M3 15c4 0 5-6 9-6h8m-4-4 4 4-4 4M6 19c2 0 4-2 5-4M4 5h3"/>',
-  observe: '<path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path d="M12 2v1m0 18v1"/>',
-  comfort: '<path d="M12 19C4 14 3 10 6 7c2-2 4-1 6 1 2-2 4-3 6-1 3 3 2 7-6 12Z"/><path d="M3 4 2 3m19 1 1-1M3 19l-1 1m19-1 1 1"/>',
+  'swift-wave': 'swift-wave.svg',
+  'strong-wave': 'strong-wave.svg',
+  guard: 'guard.svg',
+  dodge: 'dodge.svg',
+  observe: 'observe.svg',
+  comfort: 'comfort.svg',
 });
 
 const OUTCOME_COPY = Object.freeze({
@@ -37,8 +37,10 @@ let panelSequence = 0;
 
 const finite = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
 const elementLabel = (element) => ELEMENT_LABELS[element] || 'Courant';
-const svgIcon = (id) => '<svg viewBox="0 0 24 24" aria-hidden="true">' +
-  (ACTION_ICONS[id] || ACTION_ICONS['swift-wave']) + '</svg>';
+const svgIcon = (id) => '<img class="battle-action__art" src="' +
+  (import.meta.env?.BASE_URL ?? '/') + 'assets/battle-icons/' +
+  (ACTION_ICONS[id] || ACTION_ICONS['swift-wave']) +
+  '" width="48" height="48" alt="" aria-hidden="true" draggable="false">';
 
 /**
  * Accessible commands for the fixed-camera arena.

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+<defs>
+<radialGradient id="observe-halo"><stop stop-color="#a9eee4" stop-opacity=".22"/><stop offset="1" stop-color="#4b9da7" stop-opacity=".03"/></radialGradient>
+<linearGradient id="observe-sea" x1="16" y1="15" x2="46" y2="52" gradientUnits="userSpaceOnUse"><stop stop-color="#eefef6"/><stop offset=".38" stop-color="#8ce9e0"/><stop offset="1" stop-color="#289bb0"/></linearGradient>
+<linearGradient id="observe-gold" x1="20" y1="12" x2="45" y2="51" gradientUnits="userSpaceOnUse"><stop stop-color="#fff3c8"/><stop offset=".5" stop-color="#f3cb83"/><stop offset="1" stop-color="#bd985d"/></linearGradient>
+</defs>
+<circle cx="32" cy="32" r="29" fill="url(#observe-halo)" stroke="#b0dfd8" stroke-opacity=".25"/>
+<path d="M12 14a27 27 0 0 1 20-9M52 50a27 27 0 0 1-20 9" stroke="url(#observe-gold)" stroke-width="1.4" stroke-linecap="round"/>
+<path d="M8 32c6-10 15-15 24-15s18 5 24 15c-6 10-15 15-24 15S14 42 8 32Z" fill="#22697a" fill-opacity=".44" stroke="url(#observe-sea)" stroke-width="1.8"/>
+<circle cx="32" cy="32" r="10.5" fill="url(#observe-sea)" stroke="url(#observe-gold)" stroke-width="1.4"/>
+<circle cx="32" cy="32" r="6.3" fill="#154c66"/>
+<path d="M27 34c3-5 5 3 9-2" stroke="#bcfff0" stroke-width="1.4" stroke-linecap="round"/>
+<circle cx="29.3" cy="27.5" r="1.8" fill="#fafff3"/>
+<path d="M32 7v5m0 40v5M12 12l4 4m32 32 4 4M52 12l-4 4M16 48l-4 4" stroke="url(#observe-gold)" stroke-width="1.4" stroke-linecap="round"/>
+<path d="M19 24c3-2 6-4 9-4M37 44l6-3" stroke="#c9fdf0" stroke-width="1" stroke-linecap="round" opacity=".8"/>
+</svg>
