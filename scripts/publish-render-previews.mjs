@@ -16,7 +16,7 @@ async function api(path,{method='GET',body,optional=false}={}){
 const report=JSON.parse(await readFile('artifacts-smoke/report.json','utf8'));
 if(!['passed','failed'].includes(report.status))throw new Error('Capture report status is required');
 const files=[{path:'report.json',content:JSON.stringify({...report,sourceSha,runId})+'\n'}];
-for(const [name,filename] of [['desktop','desktop-high-exploration.jpg'],['tactile','touch-landscape-low-exploration.jpg'],['care','desktop-high-care.jpg'],['hop','desktop-high-belly-hop.jpg'],['swimming','desktop-high-swimming.jpg'],['underwater','desktop-high-underwater.jpg'],['combat','desktop-battle-combat.jpg'],['combat-victory','desktop-battle-combat-victory.jpg']]){
+for(const [name,filename] of [['desktop','desktop-high-exploration.jpg'],['tactile','touch-landscape-low-exploration.jpg'],['care','desktop-high-care.jpg'],['hop','desktop-high-belly-hop.jpg'],['swimming','desktop-high-swimming.jpg'],['underwater','desktop-high-underwater.jpg'],['combat','desktop-battle-combat.jpg'],['combat-victory','desktop-battle-combat-victory.jpg'],['combat-touch','touch-battle-combat.jpg'],['combat-portrait','portrait-battle-combat.jpg']]){
   let image,phase=filename.match(/-(care|belly-hop|swimming|underwater|combat-victory|combat)\.jpg$/)?.[1]||'exploration';
   try{image=await readFile('artifacts-smoke/'+filename);}
   catch(error){
@@ -25,7 +25,7 @@ for(const [name,filename] of [['desktop','desktop-high-exploration.jpg'],['tacti
     catch(fallbackError){if(fallbackError.code==='ENOENT')continue;throw fallbackError;}
   }
   if(image.length<3||image[0]!==0xff||image[1]!==0xd8)throw new Error('Invalid JPEG: '+filename);
-  const content=JSON.stringify({sourceSha,runId,status:report.cases.find(c=>c.name===(name==='tactile'?'touch-landscape-low':name.startsWith('combat')?'desktop-battle':'desktop-high'))?.status??report.status,runStatus:report.status,phase,imageBase64:image.toString('base64'),mimeType:'image/jpeg'})+'\n';
+  const content=JSON.stringify({sourceSha,runId,status:report.cases.find(c=>c.name===(name==='tactile'?'touch-landscape-low':name==='combat-touch'?'touch-battle':name==='combat-portrait'?'portrait-battle':name.startsWith('combat')?'desktop-battle':'desktop-high'))?.status??report.status,runStatus:report.status,phase,imageBase64:image.toString('base64'),mimeType:'image/jpeg'})+'\n';
   if(Buffer.byteLength(content)>maxBytes)throw new Error('Capture exceeds 1 MB');
   files.push({path:name+'.json',content});
 }
@@ -39,7 +39,7 @@ else{
   }
   if(reference){
     const previous=await api('/git/trees/'+parent.tree.sha),present=new Set(files.map(f=>f.path));
-    for(const e of previous.tree)if(['desktop.json','tactile.json','care.json','hop.json','swimming.json','underwater.json','combat.json','combat-victory.json'].includes(e.path)&&!present.has(e.path))tree.push({path:e.path,mode:'100644',type:'blob',sha:null});
+    for(const e of previous.tree)if(['desktop.json','tactile.json','care.json','hop.json','swimming.json','underwater.json','combat.json','combat-victory.json','combat-touch.json','combat-portrait.json'].includes(e.path)&&!present.has(e.path))tree.push({path:e.path,mode:'100644',type:'blob',sha:null});
   }
   const nextTree=await api('/git/trees',{method:'POST',body:{...(reference?{base_tree:parent.tree.sha}:{}),tree}});
   const commit=await api('/git/commits',{method:'POST',body:{message:'Render previews: '+sourceSha.slice(0,12)+' ('+report.status+')',tree:nextTree.sha,parents:[parentSha]}});

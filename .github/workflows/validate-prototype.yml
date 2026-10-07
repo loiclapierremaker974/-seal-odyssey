@@ -21,6 +21,7 @@ jobs:
     timeout-minutes: 30
     env:
       VITE_BASE_PATH: /-seal-odyssey/
+      SEAL_SMOKE_CASE: battle
       VITE_BUILD_ID: validation-${{ github.sha }}
       PLAYWRIGHT_BROWSERS_PATH: /tmp/seal-odyssey-browser-cache
     steps:

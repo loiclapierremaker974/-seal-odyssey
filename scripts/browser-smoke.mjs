@@ -28,6 +28,16 @@ scenarios.push({
   name:'desktop-battle', expectedQuality:'high', battle:true,
   options:{viewport:{width:960,height:540},deviceScaleFactor:1,hasTouch:false,isMobile:false},
 });
+// Targeted original-art checks exercise actual touch commands and portrait layout.
+if(process.env.SEAL_SMOKE_CASE==='battle'){
+ scenarios.splice(0,scenarios.length,scenarios.find(s=>s.name==='desktop-battle'),{
+  name:'touch-battle',expectedQuality:'low',battle:true,
+  options:{viewport:{width:844,height:390},deviceScaleFactor:1,hasTouch:true,isMobile:true},
+ },{
+  name:'portrait-battle',expectedQuality:'low',battle:true,
+  options:{viewport:{width:390,height:844},deviceScaleFactor:1,hasTouch:true,isMobile:true},
+ });
+}
 const report = {
   schemaVersion: 1, startedAt: new Date().toISOString(),
   gitSha: process.env.GITHUB_SHA || null, appURL,
@@ -251,7 +261,7 @@ async function testSwimming(page, screenshot) {
   return {modes:['land','surface','underwater','surface'],input:'ArrowUp/Shift, Q, Space'};
 }
 
-async function testCombat(page,screenshot) {
+async function testCombat(page,screenshot,scenario) {
   const panel=page.locator('.battle-panel');
   await page.locator('canvas.game-canvas').click({position:{x:10,y:10}});
   await page.keyboard.down('Shift');await page.keyboard.down('ArrowRight');
@@ -262,10 +272,14 @@ async function testCombat(page,screenshot) {
   assert.equal(await panel.getAttribute('data-battle-state'),'active');
   assert.equal(await panel.locator('[data-battle-action]').count(),6);
   assert.ok(await panel.locator('[data-battle-intent]').textContent());
+  assert.equal(await panel.getAttribute('data-battle-art'),'illustrated','The first battle frame must use the loaded original art.');
+  const icons=await panel.locator('.battle-action__art').evaluateAll(nodes=>nodes.map(n=>({loaded:n.complete&&n.naturalWidth>0,path:n.getAttribute('src')})));
+  assert.equal(icons.length,6);assert.ok(icons.every(n=>n.loaded&&n.path.startsWith('/-seal-odyssey/assets/battle-icons/')));
   await screenshot('combat');
   const used=[];
   const perform=async id=>{
-    await panel.locator('[data-battle-action="'+id+'"]').click();
+    const command=panel.locator('[data-battle-action="'+id+'"]');
+    if(scenario.options.hasTouch)await command.tap();else await command.click();
     assert.equal(await panel.getAttribute('data-battle-busy'),'true','Commands must lock during the actual animated turn.');
     assert.ok(await panel.locator('[data-battle-action="swift-wave"]').isDisabled(),'A second turn must not start during animation.');
     await page.waitForFunction(()=>document.querySelector('.battle-panel')?.dataset.battleBusy==='false',undefined,{polling:100,timeout:120000});
@@ -282,7 +296,7 @@ async function testCombat(page,screenshot) {
   }
   assert.equal(await panel.getAttribute('data-battle-state'),'victory','The shore manifestation must be appeasable using the visible actions.');
   await screenshot('combat-victory');
-  await panel.locator('[data-battle-close]').click();
+  if(scenario.options.hasTouch)await panel.locator('[data-battle-close]').tap();else await panel.locator('[data-battle-close]').click();
   await panel.waitFor({state:'hidden'});
   assert.equal(await page.locator('canvas.game-canvas').evaluate(c=>document.activeElement===c),true,'Exploration must regain keyboard focus.');
   const returned=await page.evaluate(()=>({...window.__sealSmokeMotion.latest}));
@@ -382,7 +396,7 @@ async function runScenario(scenario) {
     result.sound = await testSoundToggle(page, scenario.expectedQuality === 'high');
     await screenshot('exploration');
     if(scenario.battle){
-      result.combat=await testCombat(page,screenshot);
+      result.combat=await testCombat(page,screenshot,scenario);
     }else{
     result.bellyHop=await testBellyHop(page,scenario,screenshot);
     await page.getByRole('button', { name: 'Prendre soin de Luma', exact: true }).click();

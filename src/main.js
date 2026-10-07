@@ -2,6 +2,7 @@ import './styles.css';
 import './ui/battle.css';
 
 import { BattleArena } from './combat/BattleArena.js';
+import { ARENA_ILLUSTRATIONS } from './combat/arenaIllustrations.js';
 import { CombatSystem } from './combat/CombatSystem.js';
 import { ENCOUNTERS } from './combat/encounters.js';
 import { EncounterDirector } from './combat/EncounterDirector.js';
@@ -21,7 +22,7 @@ import { AelysScene } from './world/AelysScene.js';
 import { createLumaProxy } from './world/createLumaProxy.js';
 
 const APP_VERSION =
-  typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.6.0';
+  typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.7.0';
 const BUILD_ID =
   typeof __BUILD_ID__ !== 'undefined'
     ? __BUILD_ID__
@@ -72,6 +73,8 @@ function boot() {
   let battle = null;
   let battleArena = null;
   let battleBusy = false;
+  let battleLoading = false;
+  let disposed = false;
   let activeEncounter = null;
   let battleWidth = 0, battleHeight = 0;
   const encounterDirector = new EncounterDirector({encounters:ENCOUNTERS,
@@ -104,6 +107,7 @@ function boot() {
           hud.setSoundEnabled(ready && !audio.muted);
         });
       }
+      void preloadBattleIllustrations().catch(() => {});
       controller?.setEnabled(true);
       hud.setBuildStatus(`P0 · v${APP_VERSION}`, 'ready');
       hud.showToast("Bienvenue sur le Rivage d'Aelys", { tone: 'success' });
@@ -185,7 +189,7 @@ function boot() {
   });
 
   function openCare() {
-    if(battle)return;
+    if(battle||battleLoading)return;
     if (controller?.state.mode === 'land' && controller.state.jumpStage !== 'idle') {
       pendingCare = true;
       return;
@@ -217,22 +221,43 @@ function boot() {
     onClose:closeCombat,
   });
 
-  function openCombat(encounter) {
-    if(!started||battle||careActive||!controller.enabled||controller.state.jumpStage!=='idle')return;
-    activeEncounter=encounter;
-    encounterDirector.suppressUntilExit(encounter.id);
-    pendingCare=false;
-    controller.setEnabled(false);input.reset();
-    hud.setVisible(false);
-    canvas.tabIndex=-1;canvas.style.pointerEvents='none';
-    canvas.setAttribute('aria-label','Arène de la rencontre : '+encounter.name);
-    battle=new CombatSystem({encounterId:encounter.id,lumaTrust:gameState.lumaTrust});
+  function preloadBattleIllustrations() {
     battleArena??=new BattleArena({renderer:world.renderer,lowPower:world.lowPower,environment:world.scene.environment});
-    battleArena.open(encounter);
-    battleWidth=root.clientWidth;battleHeight=root.clientHeight;
-    battleArena.resize(battleWidth,battleHeight);
-    battlePanel.open({encounter,state:battle.getState()});
-    audio.playCue('echo');
+    return battleArena.loadIllustrations(ARENA_ILLUSTRATIONS,{baseUrl:import.meta.env.BASE_URL});
+  }
+
+  async function openCombat(encounter) {
+    if(!started||battle||battleLoading||careActive||!controller.enabled||controller.state.jumpStage!=='idle')return;
+    battleLoading=true;
+    encounterDirector.suppressUntilExit(encounter.id);
+    pendingCare=false;controller.setEnabled(false);input.reset();
+    setObjective('Le décor de la rencontre se prépare…');
+    hud.showToast('La rencontre se prépare…',{duration:10000});
+    canvas.setAttribute('aria-busy','true');
+    try {
+      await preloadBattleIllustrations();
+      if(disposed)return;
+      activeEncounter=encounter;
+      hud.setVisible(false);
+      canvas.tabIndex=-1;canvas.style.pointerEvents='none';
+      canvas.setAttribute('aria-label','Arène de la rencontre : '+encounter.name);
+      battle=new CombatSystem({encounterId:encounter.id,lumaTrust:gameState.lumaTrust});
+      battleArena.open(encounter);
+      battleWidth=root.clientWidth;battleHeight=root.clientHeight;
+      battleArena.resize(battleWidth,battleHeight);
+      battlePanel.element.dataset.battleArt=battleArena.illustrated?'illustrated':'procedural';
+      battlePanel.open({encounter,state:battle.getState()});
+      audio.playCue('echo');
+    } catch {
+      if(!disposed){
+        battle=null;activeEncounter=null;controller.setEnabled(started);input.reset();
+        hud.setVisible(true);
+        hud.showToast('Le décor n’a pas pu être chargé. Revenez vers le courant pour réessayer.',{tone:'warning',duration:6500});
+        syncProgressUI();
+      }
+    } finally {
+      battleLoading=false;canvas.removeAttribute('aria-busy');
+    }
   }
 
   function presentCombatResult(result) {
@@ -513,6 +538,7 @@ function boot() {
   document.addEventListener('visibilitychange', persistWhenHidden);
 
   return () => {
+    disposed=true;
     cancelAnimationFrame(animationFrame);
     window.clearTimeout(saveTimer);
     window.removeEventListener('pagehide', persistNow);

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { createLumaProxy, disposeLumaProxy } from '../world/createLumaProxy.js';
 import { createArenaLandscape, createArenaWaveRibbon, createCurrentVeils, createArenaImpactPool } from './createArenaArt.js';
+import { createIllustratedArena, loadIllustratedArenaAssets } from './createIllustratedArena.js';
 
 const finite=(v,f=0)=>Number.isFinite(Number(v))?Number(v):f;
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
@@ -12,6 +13,7 @@ export class BattleArena {
   constructor({renderer,lowPower=false,environment=null}={}){
     if(!renderer?.render)throw new Error('BattleArena requires the existing renderer.');
     this.renderer=renderer;this.lowPower=lowPower;this.environment=environment;
+    this._illustrated=null;this._illustrationRequired=false;this._illustrationPromise=null;this._ownedIllustrationAssets=null;
     this.scene=new THREE.Scene();this.scene.environment=environment;this.scene.environmentIntensity=.32;
     this.scene.background=new THREE.Color(0x86c8d6);
     this.scene.fog=new THREE.Fog(0xa2d4dc,18,40);
@@ -32,6 +34,33 @@ export class BattleArena {
     const size=new THREE.Vector2(1280,720);renderer.getSize?.(size);this.resize(size.x,size.y);
   }
 
+  /** Callers await this promise before the first encounter opens. */
+  loadIllustrations(manifest,options={}){
+    if(this._disposed)return Promise.reject(new Error('BattleArena has been disposed.'));
+    if(this._illustrationPromise)return this._illustrationPromise;
+    this._illustrationRequired=true;
+    this._illustrationPromise=loadIllustratedArenaAssets(manifest,options).then(assets=>{
+      if(this._disposed){assets.dispose();throw new Error('BattleArena has been disposed.');}
+      try{this.setIllustratedAssets(assets);}catch(error){assets.dispose();throw error;}
+      this._ownedIllustrationAssets=assets;return this;
+    }).catch(error=>{this._illustrationPromise=null;throw error;});
+    return this._illustrationPromise;
+  }
+  /** External assets are borrowed. Loaded assets have one owner. */
+  setIllustratedAssets(assets){
+    if(this._disposed)throw new Error('BattleArena has been disposed.');
+    const next=assets?createIllustratedArena(assets):null;
+    if(next)next.resize(this.width||1280,this.height||720);
+    if(this._illustrated){this.scene.remove(this._illustrated.group);this._illustrated.dispose();}
+    this._illustrated=next;
+    const variant=this.variant||'shore',painted=next?.setEncounter(variant)||false;
+    if(next){this.scene.add(next.group);next.group.visible=this.active;next.update(this.time,this._current,this.luma,this.camera);}
+    this.luma.visible=!next;this._sky.visible=!painted;
+    for(const [name,group] of Object.entries(this._backdrops))group.visible=this.active&&!painted&&name===variant;
+    this.scene.userData.presentation=next?'illustrated-2d-with-live-effects':'procedural-3d';
+    return this;
+  }
+  get illustrated(){return Boolean(this._illustrated?.hasBackdrop(this.variant||'shore'));}
   _mesh(parent,geometry,material,x,y,z,sx=1,sy=1,sz=1){
     const mesh=new THREE.Mesh(geometry,material);mesh.position.set(x,y,z);mesh.scale.set(sx,sy,sz);
     parent.add(mesh);return mesh;
@@ -50,7 +79,7 @@ export class BattleArena {
       shade.copy(bottom).lerp(top,(skyGeometry.attributes.position.getY(i)+9)/18);colors.push(shade.r,shade.g,shade.b);
     }
     skyGeometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
-    this._mesh(this.scene,skyGeometry,new THREE.MeshBasicMaterial({vertexColors:true,fog:false}),0,4,-12);
+    this._sky=this._mesh(this.scene,skyGeometry,new THREE.MeshBasicMaterial({vertexColors:true,fog:false}),0,4,-12);
     this._backdrops={};
     for(const variant of ['shore','lagoon','ruins']){
       const group=createArenaLandscape({variant,lowPower:this.lowPower});group.visible=false;this.scene.add(group);this._backdrops[variant]=group;
@@ -119,6 +148,7 @@ export class BattleArena {
 
   open(encounter={}){
     if(this._disposed)throw new Error('BattleArena has been disposed.');
+    if(this._illustrationRequired&&!this._illustrated)throw new Error('Battle illustrations are not ready.');
     this.close();this.active=true;this.time=0;this.calm=0;this._calmTarget=0;
     this.encounter=encounter;this.variant=this._backdrops[encounter.arena]?encounter.arena:'shore';
     const opponent=encounter.opponent||{};
@@ -126,7 +156,10 @@ export class BattleArena {
     this.maxResolve=Math.max(1,finite(opponent.maxResolve,100));
     this.element=this._palette[opponent.element]?opponent.element:'current';
     this._focus.position.copy(this._opponentBase);this._focus.position.z=.2;
-    for(const [variant,group] of Object.entries(this._backdrops))group.visible=variant===this.variant;
+    const painted=this._illustrated?.setEncounter(this.variant)||false;
+    if(this._illustrated)this._illustrated.group.visible=true;
+    this._sky.visible=!painted;this.luma.visible=!this._illustrated;
+    for(const [variant,group] of Object.entries(this._backdrops))group.visible=!painted&&variant===this.variant;
     this.scene.background.set(this.variant==='shore'?0x91cbd7:0x3d8da8);
     this.luma.position.copy(this._lumaBase);this.opponent.position.copy(this._opponentBase);
     this.luma.userData.setMood('curious');this.opponent.scale.setScalar(1);
@@ -148,6 +181,7 @@ export class BattleArena {
     const shift=(center*2-1)*halfH;
     Object.assign(this.camera,{left:-halfW,right:halfW,top:halfH+shift,bottom:-halfH+shift});
     this.camera.updateProjectionMatrix();this.camera.updateMatrixWorld(true);
+    this._illustrated?.resize(this.width,this.height);
   }
 
   get playing(){return this._playing;}
@@ -233,9 +267,9 @@ export class BattleArena {
       ['guard','dodge','observe','comfort'].includes(event?.type)?event.type:null;
     const lumaAction=action&&(event?.actor==='luma'||(event?.type==='dodge'&&event.target!=='opponent'));
     const state=this._poseState;
-    Object.assign(state,{mode:this.variant==='shore'?'land':this.variant==='lagoon'?'surface':'underwater',
+    Object.assign(state,{mode:this.variant==='lagoon'?'underwater':'land',
       horizontalSpeed:0,gaitPhase:0,airborne:false,jumpHeight:0,jumpStage:'idle',
-      jumpPhase:0,landing:0,turn:0,overWater:this.variant!=='shore'});
+      jumpPhase:0,landing:0,turn:0,overWater:this.variant==='lagoon'});
     this.luma.position.copy(this._lumaBase);
     const opponentBob=Math.sin(this.time*2.1)*.07*(1-this.calm*.75);
     this.opponent.position.copy(this._opponentBase);this.opponent.position.y+=opponentBob;
@@ -292,6 +326,7 @@ export class BattleArena {
         }
       }
     }
+    this._illustrated?.update(this.time,entry,this.luma,this.camera);
   }
 
   _effects(dt){
@@ -374,12 +409,15 @@ export class BattleArena {
 
   close(){
     this.active=false;this._playing=false;this._queue.length=0;this._current=null;this._complete=null;
+    if(this._illustrated)this._illustrated.group.visible=false;
   }
 
   dispose(){
     if(this._disposed)return;this.close();this._disposed=true;
     this.scene.traverse(object=>{if(object.isInstancedMesh)object.dispose();if(object.shadow?.dispose)object.shadow.dispose();});
     this.scene.remove(this.luma);disposeLumaProxy(this.luma);
+    if(this._illustrated){this.scene.remove(this._illustrated.group);this._illustrated.dispose();this._illustrated=null;}
+    this._ownedIllustrationAssets?.dispose();this._ownedIllustrationAssets=null;
     const geometries=new Set(),materials=new Set(),textures=new Set(),skeletons=new Set();
     this.scene.traverse(object=>{
       if(object.geometry)geometries.add(object.geometry);if(object.skeleton)skeletons.add(object.skeleton);
