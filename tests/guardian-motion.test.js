@@ -229,3 +229,12 @@ test('teleport and a shallow-water hop both resolve the seabed before care can p
   }
   assert.fail('The hop should reach shallow-water support.');
 });
+
+test('shore waves preserve grounded land movement',()=>{
+  const f=fixture({terrain:()=>-.10,surface:()=>.20,position:[0,0,0]});
+  f.step(.3);
+  assert.equal(f.controller.state.mode,'land');
+  assert.equal(f.controller.state.grounded,true);
+  assert.equal(f.controller.state.airborne,false);
+  assert.equal(f.object.position.y,-.10+MOVEMENT.bodyClearance);
+});

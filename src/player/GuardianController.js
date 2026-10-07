@@ -375,8 +375,9 @@ export class GuardianController {
 
   _updateMotionState(delta, sample, distance = 0) {
     const land = sample.groundHeight >= sample.waterLevel - 0.14;
-    const supportY = Math.max(sample.groundHeight + MOVEMENT.bodyClearance,
-      (sample.surfaceHeight ?? sample.waterLevel) + MOVEMENT.surfaceFloatHeight);
+    const supportY = land ? sample.groundHeight + MOVEMENT.bodyClearance
+      : Math.max(sample.groundHeight + MOVEMENT.bodyClearance,
+          (sample.surfaceHeight ?? sample.waterLevel) + MOVEMENT.surfaceFloatHeight);
     this.state.overWater = !land;
     this.state.grounded = this.state.mode === 'land' &&
       this.state.jumpStage !== 'air' &&
