@@ -124,12 +124,13 @@ test('strong resonance anticipates backwards, pushes with flippers and recovers'
   let prepared=false,released=false,ribbon=false;const baseX=arena._lumaBase.x;
   for(let frame=0;frame<75;frame++){
     arena.update(.01);const e=arena._current;
-    if(e?.event.actor==='luma'&&e.event.actionId==='strong-wave'){
+    if(e?.event.type==='action'&&e.event.actor==='luma'&&e.event.actionId==='strong-wave'){
       const p=e.age/e.duration;
       if(p>.15&&p<.23){prepared=true;assert.ok(arena.luma.position.x<baseX-.04);}
       if(p>.48&&p<.6){released=true;assert.ok(arena.luma.position.x>baseX+.25);}
       for(const joint of arena._fore)assert.ok([joint.rotation.x,joint.rotation.y,joint.rotation.z].every(Number.isFinite));
     }
+    if(e?.event.type==='hit'&&e.event.actor==='luma'&&e.event.target==='opponent')assert.ok(Math.abs(arena.luma.position.x-baseX)<1e-6);
     for(const w of arena._waves)if(w.group.visible){ribbon=true;assert.ok(w.ribbon.mesh.isMesh);assert.ok(w.ribbon.material.uniforms.uOpacity.value>=0);}
   }
   assert.ok(prepared&&released&&ribbon);arena.close();arena.dispose();

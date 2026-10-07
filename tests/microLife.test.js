@@ -41,7 +41,7 @@ test('micro-fauna retain GPU arrays with invalid inputs and dispose exactly once
   g.userData.dispose();g.userData.dispose();g.userData.update(2,null);assert.equal(g.parent,null);assert.equal(g.children.length,0);assert.ok(Array.from(counts.values()).every(c=>c===1));
 });
 test('submerged terrain hides ants with finite matrices',()=>{
-  const g=createAelysMicroLife({terrainHeight:()=>-2,lowPower:true}),b=g.getObjectByName('Fourmis — abdomen thorax tête'),scale=new THREE.Vector3(),p=new THREE.Vector3(),q=new THREE.Quaternion();
-  for(let i=0;i<b.count;i++){b.getMatrixAt(i,matrix);matrix.decompose(p,q,scale);assert.equal(scale.length(),0);}
+  const g=createAelysMicroLife({terrainHeight:()=>-2,lowPower:true}),b=g.getObjectByName('Fourmis — abdomen thorax tête');
+  for(let i=0;i<b.count;i++){b.getMatrixAt(i,matrix);const e=matrix.elements;assert.equal(Math.hypot(e[0],e[1],e[2],e[4],e[5],e[6],e[8],e[9],e[10]),0);}
   g.userData.update(1,{x:-3,y:0,z:5});assert.ok(Array.from(b.instanceMatrix.array).every(Number.isFinite));g.userData.dispose();
 });

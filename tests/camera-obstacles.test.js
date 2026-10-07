@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { CameraObstacles } from '../src/world/CameraObstacles.js';
 import { GuardianController } from '../src/player/GuardianController.js';
+import { CAMERA } from '../src/config/gameplay.js';
 
 test('an instanced shoreline rock shortens the camera arm before contact', () => {
   const query = new CameraObstacles({ clearance: .30 });
@@ -41,7 +42,7 @@ test('the post-interpolation camera and care snap remain before a solid wall', (
       resolveCameraPosition:(target,position)=>query.resolve(target,position)},
   });
   controller.yaw=0;controller.pitch=0;
-  controller.camera.position.set(0,.725,6);
+  controller.camera.position.set(0,controller.object.position.y+CAMERA.targetHeightLand,6);
   controller._updateCamera(1/60);
   assert.ok(controller.camera.position.z<=2.2+1e-6,'Smoothing must not retain a position behind the wall.');
   controller.setCameraFocus({yaw:0,pitch:0,distance:3.2,targetHeight:.86});
