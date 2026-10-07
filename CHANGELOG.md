@@ -2,6 +2,25 @@
 
 Les changements notables de cette reprise locale sont consignés ici. Le format suit l'esprit de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et les versions applicatives suivent le versionnage sémantique quand il devient pertinent.
 
+## [0.4.0] - 2026-10-07
+
+### Ajouté
+
+- Petits bonds sur le ventre : anticipation, trajectoire physique, réception amortie et contacts avec le sable ou l’eau. Une touche tenue déclenche un seul bond.
+- Articulation du milieu du corps, ondulations de nage et poussées des nageoires liées à la distance parcourue à terre.
+- Particules de sable, éclaboussures et rides de surface dans des pools limités selon le profil graphique.
+- Bouton tactile contextuel Bondir / Plonger / Remonter et sons discrets des contacts, avec les mêmes préférences audio.
+- Tests des trajectoires, transitions rive/eau, pauses, téléportations, ombre et effets ; vérification du bond au clavier et par toucher dans Chromium.
+
+### Amélioré
+
+- Allure terrestre plus lente, rythme du ventre et réception avec compression douce.
+- Ombre conservée sur le sol durant le vol ; les soins attendent la fin du bond.
+- Eau turquoise, lumière réfléchie alignée avec le soleil et écume plus fine.
+- Maintenir la remontée à la surface ne fait plus monter Luma dans l’air.
+
+Le jeu reste une fondation procédurale jouable ; le rendu de la fiche demeure la cible artistique.
+
 ## [0.3.1] - 2026-10-06
 
 ### Amélioré

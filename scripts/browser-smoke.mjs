@@ -28,7 +28,7 @@ const report = {
   schemaVersion: 1, startedAt: new Date().toISOString(),
   gitSha: process.env.GITHUB_SHA || null, appURL,
   backendRequested: 'Chromium ANGLE SwiftShader',
-  scope: 'Production startup, real GLSL compilation/linking, draw calls and UI interactions. No visual quality, frame-rate or real-device assertion.',
+  scope: 'Production startup, real GLSL compilation/linking, draw calls, actual keyboard/touch belly hops, shore/water transitions and UI interactions. No visual quality, frame-rate or real-device assertion.',
   cases: [], failures: [],
 };
 let preview, browser;
@@ -164,6 +164,70 @@ function installCaptureGate() {
   };
 }
 
+function installMotionTrace() {
+  const trace = {events:[],latest:null,captureHop:false,captured:false,captureScheduled:false};
+  window.__sealSmokeMotion=trace;
+  document.addEventListener('seal:motion-state', event => {
+    const state={...event.detail};
+    trace.latest=state; trace.events.push(state);
+    if(trace.events.length>128)trace.events.shift();
+    if(trace.captureHop && !trace.captureScheduled && state.jumpStage==='air' && state.jumpHeight>=.18) {
+      trace.captureScheduled=true;
+      // Capture the completed game frame, after its draw calls.
+      requestAnimationFrame(()=>{
+        window.__sealSmokeFrames.pause();
+        trace.captured=true;
+      });
+    }
+  },true);
+}
+async function testBellyHop(page, scenario, screenshot) {
+  await page.evaluate(()=>{
+    const t=window.__sealSmokeMotion;
+    t.events=[];t.captureHop=true;t.captured=false;t.captureScheduled=false;
+  });
+  if(scenario.expectedQuality==='high') {
+    await page.locator('canvas.game-canvas').focus();
+    await page.keyboard.press('Space');
+  } else {
+    await page.getByRole('button',{name:'Petit bond sur le ventre',exact:true}).tap();
+  }
+  await page.waitForFunction(()=>window.__sealSmokeMotion.captured,undefined,{polling:100,timeout:45000});
+  await screenshot('belly-hop');
+  await page.evaluate(()=>window.__sealSmokeMotion.captureHop=false);
+  await page.waitForFunction(()=>{
+    const t=window.__sealSmokeMotion;
+    return t.events.some(s=>s.jumpStage==='landing') && t.latest.jumpStage==='idle';
+  },undefined,{polling:100,timeout:45000});
+  const trace=await page.evaluate(()=>window.__sealSmokeMotion.events);
+  for(const stage of ['anticipation','air','landing','idle'])
+    assert.ok(trace.some(s=>s.jumpStage===stage),'Actual movement must reach '+stage);
+  assert.ok(trace.some(s=>s.jumpStage==='air' && s.grounded===false && s.jumpHeight>=.18),'Hop must leave the ground.');
+  assert.ok(trace.at(-1).grounded,'Hop must finish on the ground.');
+  return {stages:[...new Set(trace.map(s=>s.jumpStage))],peakObserved:Math.max(...trace.map(s=>s.jumpHeight)),input:scenario.expectedQuality==='high'?'Space':'native touch tap'};
+}
+async function testSwimming(page, screenshot) {
+  await page.locator('canvas.game-canvas').focus();
+  await page.keyboard.down('Shift');
+  await page.keyboard.down('ArrowUp');
+  try {
+    await page.waitForFunction(()=>window.__sealSmokeMotion.latest?.mode==='surface',undefined,{polling:200,timeout:45000});
+  } finally {
+    await page.keyboard.up('ArrowUp');await page.keyboard.up('Shift');
+  }
+  await screenshot('swimming');
+  await page.keyboard.down('KeyQ');
+  try {
+    await page.waitForFunction(()=>window.__sealSmokeMotion.latest?.mode==='underwater',undefined,{polling:100,timeout:45000});
+  } finally {await page.keyboard.up('KeyQ');}
+  await screenshot('underwater');
+  await page.keyboard.down('Space');
+  try {
+    await page.waitForFunction(()=>window.__sealSmokeMotion.latest?.mode==='surface',undefined,{polling:100,timeout:45000});
+  } finally {await page.keyboard.up('Space');}
+  return {modes:['land','surface','underwater','surface'],input:'ArrowUp/Shift, Q, Space'};
+}
+
 async function runScenario(scenario) {
   const result = { name: scenario.name, expectedQuality: scenario.expectedQuality, status: 'running', consoleErrors: [], pageErrors: [], requestFailures: [], httpErrors: [], warnings: [], screenshots: [] };
   report.cases.push(result);
@@ -184,6 +248,7 @@ async function runScenario(scenario) {
   });
   await page.addInitScript(installWebGLProbe);
   await page.addInitScript(installCaptureGate);
+  await page.addInitScript(installMotionTrace);
   const screenshot = async (phase) => {
     const filename = scenario.name + '-' + phase + '.png';
     // Briefly hold browser RAF callbacks and drain software GL for a stable,
@@ -192,7 +257,7 @@ async function runScenario(scenario) {
     try {
       await page.screenshot({ path: join(artifactDirectory, filename), timeout: 45000, animations: 'disabled' });
       result.screenshots.push(filename);
-      if (['exploration', 'failure', 'care'].includes(phase)) {
+      if (['exploration', 'failure', 'care', 'belly-hop', 'swimming', 'underwater'].includes(phase)) {
         await page.screenshot({ path: join(artifactDirectory, scenario.name + '-' + phase + '.jpg'), type: 'jpeg', quality: 82, timeout: 45000, animations: 'disabled' });
       }
     } finally {
@@ -214,6 +279,7 @@ async function runScenario(scenario) {
     await page.waitForFunction(() => document.querySelector('[data-intro]')?.hidden === true);
     result.sound = await testSoundToggle(page, scenario.expectedQuality === 'high');
     await screenshot('exploration');
+    result.bellyHop=await testBellyHop(page,scenario,screenshot);
     await page.getByRole('button', { name: 'Prendre soin de Luma', exact: true }).click();
     await page.getByRole('dialog', { name: 'Un moment avec Luma', exact: true }).waitFor({ state: 'visible' });
 
@@ -234,6 +300,7 @@ async function runScenario(scenario) {
     await page.getByRole('button', { name: 'Fermer le soin', exact: true }).click();
     await page.getByRole('dialog', { name: 'Un moment avec Luma', exact: true }).waitFor({ state: 'hidden' });
     assert.equal(await page.locator('#app > canvas').count(),1,'The live canvas must return to exploration.');
+    if(scenario.expectedQuality==='high')result.swimming=await testSwimming(page,screenshot);
     result.afterInteractions = await captureRuntime(page);
     assertRuntime(result.afterInteractions, scenario);
     assert.deepEqual(result.pageErrors, [], 'Uncaught browser errors occurred.');

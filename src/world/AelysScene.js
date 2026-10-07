@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { resolveCoastalMovement } from './coastalCollision.js';
 import { createAelysBackdrop } from './createAelysBackdrop.js';
+import { createAelysMotionFX } from './createAelysMotionFX.js';
 import { createAelysWater } from './createAelysWater.js';
 import {
   ECHOES,
@@ -589,6 +590,9 @@ export class AelysScene {
 
     this.water = createWater(this.quality);
     this.scene.add(this.water);
+    this.motionFX = createAelysMotionFX({lowPower:this.lowPower,waterLevel:WORLD.waterLevel});
+    this.scene.add(this.motionFX);
+    this._motionFXState = {mode:'land',airborne:false,normalizedSpeed:0};
 
     this.echoes = new Map();
     for (const definition of ECHOES) {
@@ -1094,6 +1098,18 @@ export class AelysScene {
     this._updateAtmosphere(dt);
   }
 
+
+  emitLumaMotion(type, position, strength) {
+    if (type === 'land') this.motionFX.userData.land(position, strength);
+    if (type === 'splash') this.motionFX.userData.splash(position, strength);
+  }
+
+  updateLumaMotion(position, state, delta, enabled = true) {
+    const fx = this._motionFXState;
+    fx.mode = state.mode; fx.airborne = state.airborne;
+    fx.normalizedSpeed = enabled ? state.normalizedSpeed : 0;
+    this.motionFX.userData.update(position, fx, delta);
+  }
 
   /** Reuse the same WebGL canvas in the care surface, then return to the world. */
   setContainer(container) {

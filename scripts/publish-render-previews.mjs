@@ -16,8 +16,8 @@ async function api(path,{method='GET',body,optional=false}={}){
 const report=JSON.parse(await readFile('artifacts-smoke/report.json','utf8'));
 if(!['passed','failed'].includes(report.status))throw new Error('Capture report status is required');
 const files=[{path:'report.json',content:JSON.stringify({...report,sourceSha,runId})+'\n'}];
-for(const [name,filename] of [['desktop','desktop-high-exploration.jpg'],['tactile','touch-landscape-low-exploration.jpg'],['care','desktop-high-care.jpg']]){
-  let image,phase=filename.includes('-care.jpg')?'care':'exploration';
+for(const [name,filename] of [['desktop','desktop-high-exploration.jpg'],['tactile','touch-landscape-low-exploration.jpg'],['care','desktop-high-care.jpg'],['hop','desktop-high-belly-hop.jpg'],['swimming','desktop-high-swimming.jpg'],['underwater','desktop-high-underwater.jpg']]){
+  let image,phase=filename.match(/-(care|belly-hop|swimming|underwater)\.jpg$/)?.[1]||'exploration';
   try{image=await readFile('artifacts-smoke/'+filename);}
   catch(error){
     if(error.code!=='ENOENT')throw error;
@@ -39,7 +39,7 @@ else{
   }
   if(reference){
     const previous=await api('/git/trees/'+parent.tree.sha),present=new Set(files.map(f=>f.path));
-    for(const e of previous.tree)if(['desktop.json','tactile.json','care.json'].includes(e.path)&&!present.has(e.path))tree.push({path:e.path,mode:'100644',type:'blob',sha:null});
+    for(const e of previous.tree)if(['desktop.json','tactile.json','care.json','hop.json','swimming.json','underwater.json'].includes(e.path)&&!present.has(e.path))tree.push({path:e.path,mode:'100644',type:'blob',sha:null});
   }
   const nextTree=await api('/git/trees',{method:'POST',body:{...(reference?{base_tree:parent.tree.sha}:{}),tree}});
   const commit=await api('/git/commits',{method:'POST',body:{message:'Render previews: '+sourceSha.slice(0,12)+' ('+report.status+')',tree:nextTree.sha,parents:[parentSha]}});

@@ -1,6 +1,6 @@
 # Project status
 
-Updated: 2026-10-06
+Updated: 2026-10-07
 
 ## Development and reference
 
@@ -13,12 +13,15 @@ Aelys has more sharply sculpted rock shelves and fissures, colored limestone str
 
 Warmer direct sunlight, a clearer blue sky, lighter atmospheric haze, fine sand ripples, small pebbles and narrower grass blades improve the shore. The playable movement, water, care, Echoes, quests, optional audio and local saves are preserved.
 
+Version 0.4.0 adds distance-driven belly movement, a flexible mid-body bone and small ballistic hops (0.3 m nominal height, 0.5 s nominal flight). Landings resample terrain after horizontal collisions; lower terrain extends flight, shore contacts enter water, held inputs require release before a fresh vertical action. Care waits until a hop finishes. Bounded contact particles and surface rings share resources; the scene disposes them once. Water keeps analytical reflections with a finer shore foam.
+
 ## Verification and real captures
 
 Version 0.3.0 was published at commit `d4513f584b9846bd7a1c38b77f1e9684a67325fc`, with 48 passing tests and successful Pages deployment (run 37508029591).
-The 0.3.1 working branch is `codex/luma-fur-light-2026-10-06`.
+Version 0.3.1 was published at `cad834654532f1c86cfee6fbb3687767e4e2d38a` with 51 passing tests and successful Pages run 37512283727.
+The 0.4.0 movement branch is `codex/luma-belly-hop-2026-10-06`.
 
-The validation workflow runs domain/model/collision tests, a production build and actual Chromium/SwiftShader WebGL checks on desktop/high and touch/low profiles. New checks verify shared fur binding and wet length, closed coastal contours and agreement with rendered rock triangles. Browser checks cover shader compilation/linking, draw calls, introduction, sound controls and live 3D care.
+The validation workflow runs domain/model/collision tests, a production build and actual Chromium/SwiftShader WebGL checks on desktop/high and touch/low profiles. New checks verify shared fur binding and wet length, closed coastal contours and agreement with rendered rock triangles. Browser checks cover shader compilation/linking, draw calls, introduction, sound controls, live 3D care, real Space and touch hops, and desktop swimming/dive/ascent transitions.
 
 Real screenshots and diagnostics are published as Actions artifacts and on the isolated `seal-render-previews` branch. Their source SHA and passed status must match the version being reviewed. Browser captures temporarily drain GL and pause test RAF callbacks; they are not device frame-rate measurements.
 

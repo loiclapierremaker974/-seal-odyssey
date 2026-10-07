@@ -13,7 +13,7 @@ import { AelysScene } from './world/AelysScene.js';
 import { createLumaProxy } from './world/createLumaProxy.js';
 
 const APP_VERSION =
-  typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.3.1';
+  typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.4.0';
 const BUILD_ID =
   typeof __BUILD_ID__ !== 'undefined'
     ? __BUILD_ID__
@@ -59,6 +59,8 @@ function boot() {
   let world;
   let diveRoute = 'dive';
   let started = false;
+  let pendingCare = false;
+  let motionTimer = 0;
   let saveTimer = 0;
   let lastObjective = '';
   let lastPromptCheck = 0;
@@ -165,6 +167,11 @@ function boot() {
   });
 
   function openCare() {
+    if (controller?.state.mode === 'land' && controller.state.jumpStage !== 'idle') {
+      pendingCare = true;
+      return;
+    }
+    pendingCare = false;
     controller?.setEnabled(false);
     controller?.setCameraFocus({});
     hud.setCareMode(true);
@@ -202,10 +209,21 @@ function boot() {
       if (Math.abs(gameState.oxygen - oxygen) >= 0.4) gameState.setOxygen(oxygen);
       if (Math.abs(gameState.energy - energy) >= 0.4) gameState.setEnergy(energy);
     },
-    onModeChange: () => refreshDebug(),
+    onModeChange: mode => { hud.setMovementMode(mode); refreshDebug(); },
+    onStateChange: state => { hud.setMovementMode(state.mode); emitMotionState(state); },
+    onMotion: type => audio.playCue(type),
     onAction: handleWorldAction,
   });
   controller.setEnabled(false);
+
+  // Semantic movement events also support bounded browser integration checks.
+  function emitMotionState(state) {
+    canvas.dispatchEvent(new CustomEvent('seal:motion-state', {bubbles:true,detail:{
+      mode:state.mode,jumpStage:state.jumpStage,jumpPhase:state.jumpPhase,
+      jumpHeight:state.jumpHeight,grounded:state.grounded,
+      x:luma.position.x,y:luma.position.y,z:luma.position.z,
+    }}));
+  }
 
   function handleWorldAction(result) {
     if (!result.success) {
@@ -342,10 +360,17 @@ function boot() {
     previousTime = time;
     elapsed += delta;
     controller.update(delta);
+    motionTimer += delta;
+    if (controller.state.jumpStage !== 'idle' && motionTimer >= .08) {
+      motionTimer = 0;
+      emitMotionState(controller.state);
+    }
+    if (pendingCare && controller.state.jumpStage === 'idle') openCare();
     world.update(delta, elapsed);
+    world.updateLumaMotion(luma.position, controller.state, delta, controller.enabled);
     // Reuse a small payload: no audio nodes or buffers are allocated per frame.
     world.getAmbienceState(soundState);
-    soundState.speed = controller.state.normalizedSpeed;
+    soundState.speed = controller.enabled ? controller.state.normalizedSpeed : 0;
     audio.update(soundState, delta);
     updateContextPrompt(elapsed);
     world.render();

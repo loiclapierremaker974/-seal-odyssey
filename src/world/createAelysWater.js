@@ -52,12 +52,12 @@ export function createAelysWater({
         uWaterLevel: { value: waterLevel },
         uHeightBase: { value: minimumHeight },
         uHeightRange: { value: heightRange },
-        uShallow: { value: new THREE.Color(0x54bdb5) },
-        uDeep: { value: new THREE.Color(0x0b4961) },
+        uShallow: { value: new THREE.Color(0x46c6bc) },
+        uDeep: { value: new THREE.Color(0x0b637b) },
         uHorizon: { value: new THREE.Color(0xc0e5dc) },
-        uSky: { value: new THREE.Color(0x3e8798) },
+        uSky: { value: new THREE.Color(0x4b96bd) },
         uSun: { value: new THREE.Color(0xffe2b3) },
-        uSunDirection: { value: new THREE.Vector3(-35, 25, -54).normalize() },
+        uSunDirection: { value: new THREE.Vector3(-12, 20, 4).normalize() },
     },
     vertexShader: `
       uniform float uTime;
@@ -110,22 +110,22 @@ export function createAelysWater({
         vec3 reflection = reflect(-viewDirection, normal);
         vec3 skyColour = mix(uHorizon, uSky, smoothstep(.0, .75, reflection.y));
         bool aboveWater = cameraPosition.y >= uWaterLevel;
+        float foam = 0.0;
         if (aboveWater) {
           colour = mix(colour, skyColour, fresnel * .78);
           vec3 halfway = normalize(viewDirection + uSunDirection);
           float sunGlint = pow(max(0.0, dot(normal, halfway)), 160.0);
           colour += uSun * sunGlint * .8;
           // The shore follows a dense height field from the movement terrain.
-          float shore = (1.0 - smoothstep(.12, .65, depth))
-            * smoothstep(.0, .09, depth);
-          float wash = .5 + .5 * sin(depth * 15.0 - uTime * 1.8
-            + sin(p.x * 2.4 + p.y * 1.9) * .8);
-          float foam = shore * smoothstep(.32, .82, wash);
-          colour = mix(colour, uHorizon, foam * .52);
+          float shore = (1.0-smoothstep(.08,.80,depth))*smoothstep(.0,.05,depth);
+          float edge = depth*19.0-uTime*2.2+sin(p.x*2.4+p.y*1.9)*.8;
+          float cells = .55+.45*sin(p.x*11.7-p.y*8.1+uTime*.7);
+          foam = shore*smoothstep(.45,.91,.5+.5*sin(edge))*mix(.6,1.0,cells);
+          colour = mix(colour,vec3(.83,.95,.88),foam*.75);
         } else {
           colour = mix(colour, uShallow, fresnel * .22);
         }
-        float alpha = clamp(.28 + depth * .055 + fresnel * .26, .28, .78);
+        float alpha = clamp(.28 + depth * .055 + fresnel * .26 + foam * .22, .28, .88);
         gl_FragColor = vec4(colour, alpha);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>

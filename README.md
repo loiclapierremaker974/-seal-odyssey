@@ -5,7 +5,7 @@ Cette arborescence est une reprise locale propre de **Seal Odyssey** : une verti
 [![Test and deploy Seal Odyssey](https://github.com/loiclapierremaker974/-seal-odyssey/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/loiclapierremaker974/-seal-odyssey/actions/workflows/deploy-pages.yml)
 
 > [!IMPORTANT]
-> Le dossier maître décrit une bêta avancée et cite un ancien dépôt GitHub, mais ni les sources de cette bêta, ni son archive ZIP, ni un dépôt exploitable n'étaient présents dans la transmission du 2 octobre 2026. Cette fondation ne prétend donc pas être cette bêta. La version 0.3.1 affine Luma (pelage court en volume, yeux et crâne) et les falaises d’Aelys à partir de la fiche visible du 6 octobre. Les modèles restent procéduraux et la qualité de l’illustration reste une cible artistique.
+> Le dossier maître décrit une bêta avancée et cite un ancien dépôt GitHub, mais ni les sources de cette bêta, ni son archive ZIP, ni un dépôt exploitable n'étaient présents dans la transmission du 2 octobre 2026. Cette fondation ne prétend donc pas être cette bêta. La version 0.4.0 ajoute une progression sur le ventre, des petits bonds avec anticipation et réception, une nage avec flexion du corps et des effets de sable et d’eau. Le pelage et les falaises reprennent la fiche visible du 6 octobre. Les modèles restent procéduraux et la qualité de l’illustration reste une cible artistique.
 
 Les dossiers de référence transmis par le créateur restent des sources de travail privées. Ils ne sont pas intégrés comme assets de production : leur provenance et leur usage final doivent d'abord être confirmés. Les exécutables sans rapport avec le jeu ont été laissés intacts.
 
@@ -39,14 +39,14 @@ Le service worker est enregistré uniquement dans une build de production. Une i
 | Tactile gauche | Joystick | Se déplacer sur terre ou nager |
 | Tactile droit | Zone caméra | Orienter la caméra |
 | Action | Bouton `Action` | Interagir, récupérer un Écho ou activer le Site Ancien |
-| Eau | Bouton `Plonger` | Plonger ou remonter selon le contexte de jeu |
-| Déplacement | Bouton `Sprint` | Courir ou nager plus vite en consommant de l'énergie |
+| Terre / eau | Bouton `Bondir` / `Plonger` / `Remonter` | Petit bond sur le ventre à terre ; plonger ou remonter dans l’eau |
+| Déplacement | Bouton `Sprint` | Glisser ou nager plus vite en consommant de l'énergie |
 | Relation | Bouton `Soin` | Ouvrir/déclencher l'interaction de soin disponible |
 | Clavier | `WASD` ou flèches | Se déplacer |
 | Souris | Glisser sur la scène | Orienter la caméra |
 | Clavier | `E`, `F` ou `Entrée` | Action |
-| Clavier | `Q`, `C` ou `Ctrl` | Plonger |
-| Clavier | `Espace` ou `R` | Remonter |
+| Clavier | `Q`, `C` ou `Ctrl` | Bondir à terre, plonger dans l’eau |
+| Clavier | `Espace` ou `R` | Bondir à terre, remonter dans l’eau |
 | Clavier | `Maj` | Sprinter |
 
 Les contrôles tactiles sont de vrais boutons accessibles au clavier. Les jauges d'oxygène et d'énergie, l'objectif, les trois Échos et l'identifiant de build sont exposés avec des rôles et libellés sémantiques.
