@@ -54,8 +54,9 @@ export class BattleArena {
     if(this._illustrated){this.scene.remove(this._illustrated.group);this._illustrated.dispose();}
     this._illustrated=next;
     const variant=this.variant||'shore',painted=next?.setEncounter(variant)||false;
-    if(next){this.scene.add(next.group);next.group.visible=this.active;next.update(this.time,this._current,this.luma,this.camera);}
+    if(next){this.scene.add(next.group);next.group.visible=this.active;next.update(this.time,this._current,this.luma,this.camera,this.opponent,this.calm);}
     this.luma.visible=!next;this._sky.visible=!painted;
+    for(const child of this.opponent.children)child.visible=!next?.hasCurrentArt||child===this._orbit;
     for(const [name,group] of Object.entries(this._backdrops))group.visible=this.active&&!painted&&name===variant;
     this.scene.userData.presentation=next?'illustrated-2d-with-live-effects':'procedural-3d';
     return this;
@@ -326,7 +327,7 @@ export class BattleArena {
         }
       }
     }
-    this._illustrated?.update(this.time,entry,this.luma,this.camera);
+    this._illustrated?.update(this.time,entry,this.luma,this.camera,this.opponent,this.calm);
   }
 
   _effects(dt){

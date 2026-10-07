@@ -37,7 +37,7 @@ function paintedMaterial(texture,{sprite=false}={}){
 }
 /** Original 2D environment plates and pose sprites layered with live effects.
  * Textures belong to the caller; only meshes/materials belong to this layer. */
-export function createIllustratedArena({backgrounds={},sealTexture,atlas={},displayHeight=2.2}={}){
+export function createIllustratedArena({backgrounds={},sealTexture,currentTexture=null,atlas={},displayHeight=2.2}={}){
  const atlasSize=dimensions(sealTexture,atlas.width,atlas.height);
  const sourcePoses=atlas.poses||{},idle=sourcePoses.idle;
  if(!Array.isArray(idle)||idle.length===0)throw new TypeError('The seal atlas requires at least one idle frame.');
@@ -67,7 +67,14 @@ export function createIllustratedArena({backgrounds={},sealTexture,atlas={},disp
   uniforms:{uOpacity:{value:.24}},vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
   fragmentShader:'uniform float uOpacity;varying vec2 vUv;void main(){float r=length((vUv-.5)*2.0);float a=(1.0-smoothstep(0.0,1.0,r))*uOpacity;gl_FragColor=vec4(.09,.12,.10,a);}'});
  const shadow=new THREE.Mesh(new THREE.PlaneGeometry(2.7,.26),shadowMaterial);shadow.name='Luma contact shadow';shadow.frustumCulled=false;
- group.add(background,shadow,seal);
+ let current=null;
+ if(currentTexture){
+  dimensions(currentTexture);
+  current=new THREE.Mesh(new THREE.PlaneGeometry(1,1),paintedMaterial(currentTexture,{sprite:true}));
+  current.name='Original flowing current manifestation';current.frustumCulled=false;
+  current.material.uniforms.uPivot.value.set(.5,.5);current.material.uniforms.uSize.value.set(2.55,2.55);
+ }
+ group.add(background,shadow,seal);if(current)group.add(current);
  let disposed=false,currentBackground=null,width=1280,height=720,resultPose=null,poseName='idle',frameIndex=-1,lastFrame=null;
  const fps=Math.max(1,finite(atlas.fps,8));
  const activateFrame=frame=>{
@@ -88,7 +95,7 @@ export function createIllustratedArena({backgrounds={},sealTexture,atlas={},disp
   group.userData.variant=variant;group.userData.illustratedBackground=Boolean(currentBackground);
   shadow.visible=variant!=='lagoon';activateFrame(poses.idle[0]);resize(width,height);return Boolean(currentBackground);
  };
- const update=(time,entry,actor,camera)=>{
+ const update=(time,entry,actor,camera,opponent=null,calm=0)=>{
   if(disposed||!actor||!camera)return;
   const event=entry?.event,progress=entry?clamp(entry.age/entry.duration):0;let next=resultPose||'idle';
   if(event?.type==='victory'){resultPose='happy';next='happy';}
@@ -115,15 +122,21 @@ export function createIllustratedArena({backgrounds={},sealTexture,atlas={},disp
   shadow.position.set(actor.position.x,.035,.13);shadow.quaternion.copy(camera.quaternion);
   const lift=Math.max(0,actor.position.y-.04);shadow.scale.setScalar(1-lift*.55);shadowMaterial.uniforms.uOpacity.value=.23-lift*.5;
   seal.userData.pose=poseName;seal.userData.requestedPose=next;seal.userData.frameIndex=frameIndex;sealMaterial.uniforms.uOpacity.value=1;
+  if(current&&opponent){
+   current.position.copy(opponent.position);current.quaternion.copy(camera.quaternion);
+   const peace=clamp(finite(calm)),pulse=1-peace*.10+Math.sin(finite(time)*2.1)*.015;
+   current.scale.setScalar(pulse);current.rotateZ(Math.sin(finite(time)*1.2)*.025*(1-peace));
+   current.material.uniforms.uOpacity.value=.94-peace*.35;
+  }
  };
  setEncounter('shore');
- return {group,background,seal,shadow,poses,get pose(){return poseName;},get frameIndex(){return frameIndex;},
+ return {group,background,seal,shadow,current,poses,hasCurrentArt:Boolean(current),get pose(){return poseName;},get frameIndex(){return frameIndex;},
   hasBackdrop:variant=>Boolean(backdropEntries[variant]),setEncounter,resize,update,
-  dispose(){if(disposed)return;disposed=true;for(const object of [background,seal,shadow]){object.geometry.dispose();object.material.dispose();}
-   backgroundMaterial.uniforms.uMap.value=null;sealMaterial.uniforms.uMap.value=null;group.clear();}
+  dispose(){if(disposed)return;disposed=true;for(const object of current?[background,seal,shadow,current]:[background,seal,shadow]){object.geometry.dispose();object.material.dispose();}
+   backgroundMaterial.uniforms.uMap.value=null;sealMaterial.uniforms.uMap.value=null;if(current)current.material.uniforms.uMap.value=null;group.clear();}
  };
 }
-/** Four textures are loaded once; failure waits for in-flight allocations. */
+/** Shared textures are loaded once; failure waits for in-flight allocations. */
 export async function loadIllustratedArenaAssets(manifest,{baseUrl=''}={}){
  const loader=new THREE.TextureLoader(),loads=new Map(),owned=new Set();
  const load=url=>{
@@ -137,9 +150,10 @@ export async function loadIllustratedArenaAssets(manifest,{baseUrl=''}={}){
   const entriesPromise=Promise.all(Object.entries(manifest.backgrounds||{}).map(async([name,entry])=>{
    const texture=await load(entry.url);texture.minFilter=THREE.LinearMipmapLinearFilter;texture.generateMipmaps=true;return [name,{...entry,texture}];
   }));
-  const [entries,sealTexture]=await Promise.all([entriesPromise,load(manifest.seal.url)]);
+  const [entries,sealTexture,currentTexture]=await Promise.all([entriesPromise,load(manifest.seal.url),manifest.current?load(manifest.current.url):Promise.resolve(null)]);
   sealTexture.minFilter=THREE.LinearFilter;sealTexture.generateMipmaps=false;let disposed=false;
-  return {backgrounds:Object.fromEntries(entries),sealTexture,atlas:manifest.seal.atlas,displayHeight:manifest.seal.displayHeight??2.2,
+  if(currentTexture){currentTexture.minFilter=THREE.LinearFilter;currentTexture.generateMipmaps=false;}
+  return {backgrounds:Object.fromEntries(entries),sealTexture,currentTexture,atlas:manifest.seal.atlas,displayHeight:manifest.seal.displayHeight??2.2,
    dispose(){if(disposed)return;disposed=true;owned.forEach(texture=>texture.dispose());owned.clear();}};
  }catch(error){await Promise.allSettled(loads.values());owned.forEach(texture=>texture.dispose());throw error;}
 }

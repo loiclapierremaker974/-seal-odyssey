@@ -212,8 +212,8 @@ export class MobileHUD {
 
       <section class="portrait-notice glass-panel" role="status" aria-label="Orientation recommandée">
         <span class="phone-rotate" aria-hidden="true"></span>
-        <strong>Tournez l'iPhone</strong>
-        <span>Seal Odyssey se joue en paysage.</span>
+        <strong>Vue optimale en paysage</strong>
+        <span>Vous pouvez aussi jouer en portrait.</span>
       </section>
 
       <section class="intro-screen" data-intro role="dialog" aria-modal="true" aria-labelledby="intro-title" aria-describedby="intro-description intro-source">

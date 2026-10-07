@@ -8,6 +8,7 @@ export const ARENA_ILLUSTRATIONS={
   lagoon:{url:'assets/arena/aelys-lagoon.png',width:1672,height:941},
   ruins:{url:'assets/arena/aelys-ruins.png',width:1672,height:941},
  },
+ current:{url:'assets/arena/current-manifestation.png',width:1254,height:1254},
  seal:{
   url:'assets/arena/luma-poses.png',displayHeight:2.5,
   atlas:{width:1536,height:1024,pixelsPerUnit:160,fps:8,poses:{

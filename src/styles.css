@@ -1518,3 +1518,11 @@ canvas {
   z-index: 2;
   pointer-events: none;
 }
+
+/* Orientation advice is a hint, so it never blocks entering or playing. */
+@media(orientation:portrait){
+ .portrait-notice{inset:auto 12px calc(var(--safe-bottom) + 8px);z-index:8;gap:0;max-height:30px;padding:6px 12px;border:1px solid rgb(171 218 211 / 28%);border-radius:999px;background:rgb(10 43 54 / 76%);backdrop-filter:none;pointer-events:none}
+ .portrait-notice strong{font-family:inherit;font-size:.65rem;font-weight:500}
+ .portrait-notice .phone-rotate,.portrait-notice span:last-child{display:none}
+ .battle-open .portrait-notice{display:none}
+}

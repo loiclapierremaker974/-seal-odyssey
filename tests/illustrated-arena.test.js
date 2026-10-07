@@ -8,7 +8,7 @@ import {ARENA_ILLUSTRATIONS as manifest} from '../src/combat/arenaIllustrations.
 import {BattleArena} from '../src/combat/BattleArena.js';
 import {ENCOUNTERS,CombatSystem} from '../src/combat/CombatSystem.js';
 function texture(width,height){const t=new THREE.Texture({width,height});t.colorSpace=THREE.SRGBColorSpace;return t;}
-function assets(){return {backgrounds:Object.fromEntries(Object.entries(manifest.backgrounds).map(([k,e])=>[k,{...e,texture:texture(e.width,e.height)}])),sealTexture:texture(manifest.seal.atlas.width,manifest.seal.atlas.height),atlas:manifest.seal.atlas};}
+function assets(){return {backgrounds:Object.fromEntries(Object.entries(manifest.backgrounds).map(([k,e])=>[k,{...e,texture:texture(e.width,e.height)}])),sealTexture:texture(manifest.seal.atlas.width,manifest.seal.atlas.height),currentTexture:texture(manifest.current.width,manifest.current.height),atlas:manifest.seal.atlas};}
 const renderer=()=>({getSize:t=>t.set(960,540),render(){}});
 function owned(layer){const result=new Set();layer.group.traverse(o=>{if(o.geometry)result.add(o.geometry);if(o.material)result.add(o.material);});return result;}
 test('the original Luma PNG has a genuine alpha cutout and contact pivots stay on the painted feet',async()=>{
@@ -39,10 +39,11 @@ test('the original Luma PNG has a genuine alpha cutout and contact pivots stay o
 test('all three painted encounter settings replace their procedural geometry and retain borrowed textures',()=>{
  const a=assets(),arena=new BattleArena({renderer:renderer(),lowPower:true});
  arena.setIllustratedAssets(a);
- const counts=new Map();for(const t of [a.sealTexture,...Object.values(a.backgrounds).map(x=>x.texture)]){counts.set(t,0);t.addEventListener('dispose',()=>counts.set(t,counts.get(t)+1));}
+ const counts=new Map();for(const t of [a.sealTexture,a.currentTexture,...Object.values(a.backgrounds).map(x=>x.texture)]){counts.set(t,0);t.addEventListener('dispose',()=>counts.set(t,counts.get(t)+1));}
  for(const e of ENCOUNTERS){
   arena.open(e);assert.equal(arena.illustrated,true);assert.equal(arena.luma.visible,false);assert.equal(arena._sky.visible,false);
   assert.ok(Object.values(arena._backdrops).every(g=>!g.visible));
+  assert.equal(arena._core.visible,false);assert.ok(arena._illustrated.current.isMesh);
   assert.equal(arena._illustrated.background.material.uniforms.uMap.value,a.backgrounds[e.arena].texture);
   arena.resize(390,844);arena.update(.05);assert.equal(arena._illustrated.group.visible,true);
   const before=owned(arena._illustrated);arena.play(new CombatSystem().act('strong-wave').events);
