@@ -242,6 +242,7 @@ async function runScenario(scenario) {
   report.cases.push(result);
   const context = await browser.newContext({ ...scenario.options, serviceWorkers: 'block' });
   const page = await context.newPage();
+  const captureSession = await context.newCDPSession(page);
   page.setDefaultTimeout(45000); page.setDefaultNavigationTimeout(30000);
   page.on('console', (message) => {
     if (message.type() === 'error') result.consoleErrors.push(message.text());
@@ -270,10 +271,26 @@ async function runScenario(scenario) {
       window.__sealSmokeFrames.pause();
     });
     try {
-      await page.screenshot({ path: join(artifactDirectory, filename), timeout: 45000, animations: 'disabled' });
+      // Capture the compositor's actual frozen frame directly. Playwright's
+      // screenshot preparation waits for extra animation frames during layout
+      // changes, which cannot complete while the apex/capture RAF gate is held.
+      const capture = async (format, path) => {
+        let timer;
+        try {
+          const image = await Promise.race([
+            captureSession.send('Page.captureScreenshot', {
+              format, ...(format === 'jpeg' ? {quality:82} : {}),
+              fromSurface:true, captureBeyondViewport:false,
+            }),
+            new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('Compositor capture timed out: '+phase)),45000);}),
+          ]);
+          await writeFile(path,Buffer.from(image.data,'base64'));
+        } finally {clearTimeout(timer);}
+      };
+      await capture('png',join(artifactDirectory,filename));
       result.screenshots.push(filename);
       if (['exploration', 'failure', 'care', 'belly-hop', 'swimming', 'underwater'].includes(phase)) {
-        await page.screenshot({ path: join(artifactDirectory, scenario.name + '-' + phase + '.jpg'), type: 'jpeg', quality: 82, timeout: 45000, animations: 'disabled' });
+        await capture('jpeg',join(artifactDirectory,scenario.name+'-'+phase+'.jpg'));
       }
     } finally {
       await page.evaluate(()=>window.__sealSmokeFrames.resume());
@@ -333,7 +350,7 @@ async function runScenario(scenario) {
     try { await screenshot('failure'); } catch (captureError) { result.screenshotError = serializeError(captureError); }
   } finally {
     await writeFile(join(artifactDirectory, scenario.name + '.json'), JSON.stringify(result, null, 2) + '\n');
-    await context.close();
+    try {await captureSession.detach();} finally {await context.close();}
   }
 }
 async function stopPreview() {
