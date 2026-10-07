@@ -1,6 +1,30 @@
 import * as THREE from 'three';
 import { WaterResponse, sampleAelysMeshSurface } from './WaterResponse.js';
 
+const WATER_RESPONSE_GLSL = `      uniform vec4 uImpacts[8];
+      uniform float uResponseTime;
+      vec3 waterResponse(vec2 p) {
+        float height=0.0;vec2 gradient=vec2(0.0);
+        for(int i=0;i<8;i++) {
+          vec4 impact=uImpacts[i];float age=uResponseTime-impact.z;
+          if(impact.w<=0.0 || age<0.0 || age>2.8)continue;
+          vec2 radial=p-impact.xy;float distance=length(radial);
+          float offset=distance-age*2.65,width=.45+age*.14;
+          float envelope=.078*impact.w*smoothstep(.04,.18,age)*exp(-age*1.35)*exp(-offset*offset/(width*width));
+          float ring=envelope*sin(offset*4.8);
+          float dent=-.115*impact.w*exp(-distance*distance/.75)*exp(-age*5.5);
+          height+=ring+dent;
+          float derivative=envelope*(4.8*cos(offset*4.8)-2.0*offset/(width*width)*sin(offset*4.8))
+            -2.0*distance/.75*dent;
+          gradient+=radial/max(.001,distance)*derivative;
+        }
+        if(abs(height)>=.24)gradient=vec2(0.0);
+        return vec3(clamp(height,-.24,.24),gradient);
+      }
+
+`;
+
+
 /**
  * One-pass ocean for the Aelys prototype. Reflections are an analytical sky
  * approximation; no reflection render target or production texture is used.
@@ -65,27 +89,8 @@ export function createAelysWater({
     },
     vertexShader: `
       uniform float uTime;
-      uniform vec4 uImpacts[8];
-      uniform float uResponseTime;
-      vec3 waterResponse(vec2 p) {
-        float height=0.0;vec2 gradient=vec2(0.0);
-        for(int i=0;i<8;i++) {
-          vec4 impact=uImpacts[i];float age=uResponseTime-impact.z;
-          if(impact.w<=0.0 || age<0.0 || age>2.8)continue;
-          vec2 radial=p-impact.xy;float distance=length(radial);
-          float offset=distance-age*2.65,width=.45+age*.14;
-          float envelope=.078*impact.w*exp(-age*1.35)*exp(-offset*offset/(width*width));
-          float ring=envelope*sin(offset*4.8);
-          float dent=-.115*impact.w*exp(-distance*distance/.75)*exp(-age*5.5);
-          height+=ring+dent;
-          float derivative=envelope*(4.8*cos(offset*4.8)-2.0*offset/(width*width)*sin(offset*4.8))
-            -2.0*distance/.75*dent;
-          gradient+=radial/max(.001,distance)*derivative;
-        }
-        if(abs(height)>=.24)gradient=vec2(0.0);
-        return vec3(clamp(height,-.24,.24),gradient);
-      }
 
+      ${WATER_RESPONSE_GLSL}
       varying vec3 vWorldPosition;
       #include <fog_pars_vertex>
       void main() {
@@ -103,27 +108,8 @@ export function createAelysWater({
     `,
     fragmentShader: `
       uniform float uTime;
-      uniform vec4 uImpacts[8];
-      uniform float uResponseTime;
-      vec3 waterResponse(vec2 p) {
-        float height=0.0;vec2 gradient=vec2(0.0);
-        for(int i=0;i<8;i++) {
-          vec4 impact=uImpacts[i];float age=uResponseTime-impact.z;
-          if(impact.w<=0.0 || age<0.0 || age>2.8)continue;
-          vec2 radial=p-impact.xy;float distance=length(radial);
-          float offset=distance-age*2.65,width=.20+age*.11;
-          float envelope=.078*impact.w*exp(-age*1.35)*exp(-offset*offset/(width*width));
-          float ring=envelope*sin(offset*4.8);
-          float dent=-.115*impact.w*exp(-distance*distance/.75)*exp(-age*5.5);
-          height+=ring+dent;
-          float derivative=envelope*(8.5*cos(offset*4.8)-2.0*offset/(width*width)*sin(offset*4.8))
-            -2.0*distance/.75*dent;
-          gradient+=radial/max(.001,distance)*derivative;
-        }
-        if(abs(height)>=.24)gradient=vec2(0.0);
-        return vec3(clamp(height,-.24,.24),gradient);
-      }
 
+      ${WATER_RESPONSE_GLSL}
       uniform sampler2D uSeabed;
       uniform float uWorldSize;
       uniform float uWaterLevel;

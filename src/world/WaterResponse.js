@@ -23,7 +23,8 @@ export class WaterResponse {
       if(s<=0||age<0||age>2.8)continue;
       const dx=x-this.impacts[k],dz=z-this.impacts[k+1],d=Math.hypot(dx,dz);
       const offset=d-age*2.65,width=.45+age*.14;
-      height+=.078*s*Math.exp(-age*1.35)*Math.sin(offset*4.8)*Math.exp(-((offset/width)**2))
+      const rise=clamp((age-.04)/.14,0,1),ramp=rise*rise*(3-2*rise);
+      height+=.078*s*ramp*Math.exp(-age*1.35)*Math.sin(offset*4.8)*Math.exp(-((offset/width)**2))
         -.115*s*Math.exp(-d*d/.75)*Math.exp(-age*5.5);
     }
     return clamp(height,-.24,.24);
