@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { WaterResponse, sampleAelysSurface } from '../src/world/WaterResponse.js';
+import { WaterResponse, sampleAelysSurface, sampleAelysMeshSurface } from '../src/world/WaterResponse.js';
 
 test('water responds at the contact, propagates a wave and returns to calm',()=>{
   const water=new WaterResponse();const identity=water.impacts;
@@ -27,4 +27,19 @@ test('impact strength, overlapping bounds and mobile pool capacity stay finite',
     assert.equal(response.sample(NaN,0),0);
     assert.ok(Number.isFinite(sampleAelysSurface(1,2,response.time,response)));
   }
+});
+
+test('buoyancy samples the actual triangulated surface, including contact deformation',()=>{
+  const response=new WaterResponse();response.impact(.25,.25,1);
+  const time=0,size=4,segments=8;
+  const h=(x,z)=>sampleAelysSurface(x,z,time,response);
+  const u=.4,v=.3,x=u*.5,z=v*.5;
+  const expected=h(0,0)*(1-u-v)+h(0,.5)*v+h(.5,0)*u;
+  assert.ok(Math.abs(sampleAelysMeshSurface(x,z,time,response,size,segments)-expected)<1e-12);
+  const a=.8,b=.7;
+  const upper=h(0,.5)*(1-a)+h(.5,.5)*(a+b-1)+h(.5,0)*(1-b);
+  assert.ok(Math.abs(sampleAelysMeshSurface(a*.5,b*.5,time,response,size,segments)-upper)<1e-12);
+  assert.equal(sampleAelysMeshSurface(.5,.5,time,response,size,segments),h(.5,.5));
+  const impact=sampleAelysMeshSurface(.25,.25,time,response,size,segments)-sampleAelysMeshSurface(.25,.25,time,null,size,segments);
+  assert.ok(impact<-.085,'The mobile mesh represents the broad contact depression.');
 });

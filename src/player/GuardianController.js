@@ -151,7 +151,8 @@ export class GuardianController {
       this.object.position.y = sample.groundHeight + MOVEMENT.bodyClearance;
       this.velocity.y = 0;
     } else if (this.state.mode === 'surface') {
-      const floatY = (sample.surfaceHeight ?? sample.waterLevel) + MOVEMENT.surfaceFloatHeight;
+      const floatY = Math.max(sample.groundHeight + MOVEMENT.bodyClearance,
+        (sample.surfaceHeight ?? sample.waterLevel) + MOVEMENT.surfaceFloatHeight);
       this.object.position.y = THREE.MathUtils.clamp(
         this.object.position.y, floatY, floatY + MOVEMENT.surfaceRiseAllowance);
     } else {
@@ -267,7 +268,7 @@ export class GuardianController {
     let land = sample.groundHeight >= sample.waterLevel - 0.14;
     let groundY = sample.groundHeight + MOVEMENT.bodyClearance;
     let supportY = land ? groundY
-      : (sample.surfaceHeight ?? sample.waterLevel) + MOVEMENT.surfaceFloatHeight;
+      : Math.max(groundY, (sample.surfaceHeight ?? sample.waterLevel) + MOVEMENT.surfaceFloatHeight);
     let airDelta = delta;
 
     if (this.state.jumpStage === 'anticipation') {
@@ -319,7 +320,7 @@ export class GuardianController {
         land = sample.groundHeight >= sample.waterLevel - 0.14;
         groundY = sample.groundHeight + MOVEMENT.bodyClearance;
         supportY = land ? groundY
-          : (sample.surfaceHeight ?? sample.waterLevel) + MOVEMENT.surfaceFloatHeight;
+          : Math.max(groundY, (sample.surfaceHeight ?? sample.waterLevel) + MOVEMENT.surfaceFloatHeight);
       }
 
       if (this.object.position.y <= supportY &&
@@ -374,8 +375,8 @@ export class GuardianController {
 
   _updateMotionState(delta, sample, distance = 0) {
     const land = sample.groundHeight >= sample.waterLevel - 0.14;
-    const supportY = land ? sample.groundHeight + MOVEMENT.bodyClearance
-      : (sample.surfaceHeight ?? sample.waterLevel) + MOVEMENT.surfaceFloatHeight;
+    const supportY = Math.max(sample.groundHeight + MOVEMENT.bodyClearance,
+      (sample.surfaceHeight ?? sample.waterLevel) + MOVEMENT.surfaceFloatHeight);
     this.state.overWater = !land;
     this.state.grounded = this.state.mode === 'land' &&
       this.state.jumpStage !== 'air' &&

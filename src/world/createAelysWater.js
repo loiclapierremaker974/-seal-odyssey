@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { WaterResponse, sampleAelysSurface } from './WaterResponse.js';
+import { WaterResponse, sampleAelysMeshSurface } from './WaterResponse.js';
 
 /**
  * One-pass ocean for the Aelys prototype. Reflections are an analytical sky
@@ -37,7 +37,7 @@ export function createAelysWater({
   seabed.needsUpdate = true;
 
   const response = new WaterResponse({capacity:lowPower?4:8});
-  const segments = lowPower ? 96 : 176;
+  const segments = lowPower ? 160 : 240;
   const geometry = new THREE.PlaneGeometry(size, size, segments, segments);
   geometry.rotateX(-Math.PI / 2);
   const material = new THREE.ShaderMaterial({
@@ -73,13 +73,13 @@ export function createAelysWater({
           vec4 impact=uImpacts[i];float age=uResponseTime-impact.z;
           if(impact.w<=0.0 || age<0.0 || age>2.8)continue;
           vec2 radial=p-impact.xy;float distance=length(radial);
-          float offset=distance-age*2.65,width=.20+age*.11;
+          float offset=distance-age*2.65,width=.45+age*.14;
           float envelope=.078*impact.w*exp(-age*1.35)*exp(-offset*offset/(width*width));
-          float ring=envelope*sin(offset*8.5);
-          float dent=-.115*impact.w*exp(-distance*distance/.30)*exp(-age*5.5);
+          float ring=envelope*sin(offset*4.8);
+          float dent=-.115*impact.w*exp(-distance*distance/.75)*exp(-age*5.5);
           height+=ring+dent;
-          float derivative=envelope*(8.5*cos(offset*8.5)-2.0*offset/(width*width)*sin(offset*8.5))
-            -2.0*distance/.30*dent;
+          float derivative=envelope*(4.8*cos(offset*4.8)-2.0*offset/(width*width)*sin(offset*4.8))
+            -2.0*distance/.75*dent;
           gradient+=radial/max(.001,distance)*derivative;
         }
         if(abs(height)>=.24)gradient=vec2(0.0);
@@ -113,11 +113,11 @@ export function createAelysWater({
           vec2 radial=p-impact.xy;float distance=length(radial);
           float offset=distance-age*2.65,width=.20+age*.11;
           float envelope=.078*impact.w*exp(-age*1.35)*exp(-offset*offset/(width*width));
-          float ring=envelope*sin(offset*8.5);
-          float dent=-.115*impact.w*exp(-distance*distance/.30)*exp(-age*5.5);
+          float ring=envelope*sin(offset*4.8);
+          float dent=-.115*impact.w*exp(-distance*distance/.75)*exp(-age*5.5);
           height+=ring+dent;
-          float derivative=envelope*(8.5*cos(offset*8.5)-2.0*offset/(width*width)*sin(offset*8.5))
-            -2.0*distance/.30*dent;
+          float derivative=envelope*(8.5*cos(offset*4.8)-2.0*offset/(width*width)*sin(offset*4.8))
+            -2.0*distance/.75*dent;
           gradient+=radial/max(.001,distance)*derivative;
         }
         if(abs(height)>=.24)gradient=vec2(0.0);
@@ -187,7 +187,7 @@ export function createAelysWater({
   water.position.y = waterLevel;
   water.renderOrder = 4;
   water.userData.response = response;
-  water.userData.surfaceHeight = (x,z,time) => waterLevel + sampleAelysSurface(x,z,time,response);
+  water.userData.surfaceHeight = (x,z,time) => waterLevel + sampleAelysMeshSurface(x,z,time,response,size,segments);
   return water;
 }
 

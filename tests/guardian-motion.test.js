@@ -210,3 +210,22 @@ test('surface support and underwater ceiling never put the belly below a shallow
   assert.ok(f.object.position.y>=-.20+MOVEMENT.bodyClearance-1e-9);
   assert.equal(f.controller.state.oxygen,100);
 });
+
+test('teleport and a shallow-water hop both resolve the seabed before care can pause',()=>{
+  const ground=-.141021,surface=-.112357,floor=ground+MOVEMENT.bodyClearance;
+  const floating=fixture({terrain:()=>ground,position:[0,2,0],surface:()=>surface});
+  assert.ok(floating.object.position.y>=floor);
+  floating.controller.teleport(new THREE.Vector3(2,2,2));
+  assert.ok(floating.object.position.y>=floor);
+  const hopping=fixture({terrain:p=>p.z>-.4?1:ground,surface:()=>surface});
+  hopping.state.move.y=1;hopping.button('ascend',true);
+  for(let i=0;i<180;i++){
+    hopping.controller.update(1/60);
+    if(hopping.object.position.z<-.4 && hopping.controller.state.jumpStage==='idle'){
+      hopping.controller.setEnabled(false);
+      assert.ok(hopping.object.position.y>=floor-1e-9);
+      hopping.step(.3);assert.ok(hopping.object.position.y>=floor-1e-9);return;
+    }
+  }
+  assert.fail('The hop should reach shallow-water support.');
+});
