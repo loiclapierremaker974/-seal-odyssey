@@ -356,6 +356,7 @@ function boot() {
     onMotion: type => audio.playCue(type==='dive'||type==='surface'?'splash':type),
     onAction: handleWorldAction,
   });
+  controller.state.heading=Math.PI;
   controller.setEnabled(false);
 
   function clearMovementInput() {
@@ -394,7 +395,7 @@ function boot() {
     controller.teleport(luma.position);
     hud.setMovementMode(controller.state.mode);
     startButton.disabled=false;startButton.innerHTML=startMarkup;
-    canvas.dataset.worldArt='illustrated';
+    canvas.dataset.worldArt='overworld';
     hud.setBuildStatus(`v${APP_VERSION}`,'ready');
   };
   world.ready.then(finishWorldLoading).catch(()=>{
@@ -429,6 +430,12 @@ function boot() {
       hud.showToast(messages[result.reason] ?? "L'interaction n'est pas encore possible.", {
         tone: 'warning',
       });
+      return;
+    }
+
+    if (result.type === 'scenery') {
+      hud.showToast(result.text,{duration:5000});
+      if(result.travelTo)queueMicrotask(()=>travelToIsland(result.travelTo));
       return;
     }
 

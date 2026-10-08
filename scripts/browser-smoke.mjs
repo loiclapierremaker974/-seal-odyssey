@@ -477,8 +477,8 @@ async function runScenario(scenario) {
     await page.waitForFunction(() => document.querySelector('[data-intro]')?.hidden === true);
     result.sound = await testSoundToggle(page, scenario.expectedQuality === 'high');
     await screenshot('exploration');
-    assert.equal(result.beforeStart.canvas.exploration,'isles');
-    assert.equal(result.beforeStart.canvas.worldArt,'illustrated');
+    assert.equal(result.beforeStart.canvas.exploration,'overworld');
+    assert.equal(result.beforeStart.canvas.worldArt,'overworld');
     result.nativeMovement=await nativeMove(page,scenario,captureSession);
     assert.equal((await motion(page)).mode,'land');
     result.bellyHop=await testBellyHop(page,scenario,screenshot);
