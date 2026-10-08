@@ -353,7 +353,7 @@ function boot() {
     },
     onModeChange: mode => { hud.setMovementMode(mode); refreshDebug(); },
     onStateChange: state => { hud.setMovementMode(state.mode); emitMotionState(state); },
-    onMotion: type => audio.playCue(type),
+    onMotion: type => audio.playCue(type==='dive'||type==='surface'?'splash':type),
     onAction: handleWorldAction,
   });
   controller.setEnabled(false);

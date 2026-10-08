@@ -16,18 +16,20 @@ async function api(path,{method='GET',body,optional=false}={}){
 const report=JSON.parse(await readFile('artifacts-smoke/report.json','utf8'));
 if(!['passed','failed'].includes(report.status))throw new Error('Capture report status is required');
 const files=[{path:'report.json',content:JSON.stringify({...report,sourceSha,runId})+'\n'}];
-for(const [name,filename] of [['desktop','desktop-high-exploration.jpg'],['tactile','touch-landscape-low-exploration.jpg'],['care','desktop-high-care.jpg'],['hop','desktop-high-belly-hop.jpg'],['swimming','desktop-high-swimming.jpg'],['underwater','desktop-high-underwater.jpg'],['combat','desktop-battle-combat.jpg'],['combat-victory','desktop-battle-combat-victory.jpg'],['combat-touch','touch-battle-combat.jpg'],['combat-portrait','portrait-battle-combat.jpg']]){
-  let image,phase=filename.match(/-(care|belly-hop|swimming|underwater|combat-victory|combat)\.jpg$/)?.[1]||'exploration';
-  try{image=await readFile('artifacts-smoke/'+filename);}
-  catch(error){
-    if(error.code!=='ENOENT')throw error;
-    try{image=await readFile('artifacts-smoke/'+filename.replace('-exploration.jpg','-failure.jpg'));phase='failure';}
-    catch(fallbackError){if(fallbackError.code==='ENOENT')continue;throw fallbackError;}
-  }
-  if(image.length<3||image[0]!==0xff||image[1]!==0xd8)throw new Error('Invalid JPEG: '+filename);
-  const content=JSON.stringify({sourceSha,runId,status:report.cases.find(c=>c.name===(name==='tactile'?'touch-landscape-low':name==='combat-touch'?'touch-battle':name==='combat-portrait'?'portrait-battle':name.startsWith('combat')?'desktop-battle':'desktop-high'))?.status??report.status,runStatus:report.status,phase,imageBase64:image.toString('base64'),mimeType:'image/jpeg'})+'\n';
-  if(Buffer.byteLength(content)>maxBytes)throw new Error('Capture exceeds 1 MB');
-  files.push({path:name+'.json',content});
+const previews=[
+ ['desktop','desktop-islands','exploration'],['tactile','touch-islands','exploration'],['portrait','portrait-islands','exploration'],
+ ['care','desktop-islands','care'],['hop','desktop-islands','belly-hop'],['lagoon','desktop-islands','lagoon'],
+ ['ruins','desktop-islands','ruins'],['ruins-restored','desktop-islands','ruins-restored'],
+ ['swimming','desktop-islands','swimming'],['underwater','desktop-islands','underwater'],
+ ['combat','desktop-islands','combat'],['combat-victory','desktop-islands','combat-victory']];
+for(const [name,scenario,wanted]of previews){
+ const caseResult=report.cases.find(c=>c.name===scenario);if(!caseResult)continue;
+ const phase=caseResult.screenshots.includes(scenario+'-'+wanted+'.png')?wanted:wanted==='exploration'&&caseResult.screenshots.includes(scenario+'-failure.png')?'failure':null;if(!phase)continue;
+ const filename=scenario+'-'+phase+'.jpg';let image;try{image=await readFile('artifacts-smoke/'+filename);}catch(e){if(e.code==='ENOENT')continue;throw e;}
+ if(image[0]!==0xff||image[1]!==0xd8)throw Error('Invalid JPEG '+filename);
+ const content=JSON.stringify({sourceSha,runId,status:caseResult.status,runStatus:report.status,phase,scenario,imageBase64:image.toString('base64'),mimeType:'image/jpeg'})+'\n';
+ if(Buffer.byteLength(content)>maxBytes)throw Error('Capture exceeds 1 MB');
+ files.push({path:name+'.json',content});
 }
 if(!files.length)console.log('No exploration captures present.');
 else{
@@ -39,7 +41,7 @@ else{
   }
   if(reference){
     const previous=await api('/git/trees/'+parent.tree.sha),present=new Set(files.map(f=>f.path));
-    for(const e of previous.tree)if(['desktop.json','tactile.json','care.json','hop.json','swimming.json','underwater.json','combat.json','combat-victory.json','combat-touch.json','combat-portrait.json'].includes(e.path)&&!present.has(e.path))tree.push({path:e.path,mode:'100644',type:'blob',sha:null});
+    for(const e of previous.tree)if(['desktop.json','tactile.json','portrait.json','lagoon.json','ruins.json','ruins-restored.json','care.json','hop.json','swimming.json','underwater.json','combat.json','combat-victory.json','combat-touch.json','combat-portrait.json'].includes(e.path)&&!present.has(e.path))tree.push({path:e.path,mode:'100644',type:'blob',sha:null});
   }
   const nextTree=await api('/git/trees',{method:'POST',body:{...(reference?{base_tree:parent.tree.sha}:{}),tree}});
   const commit=await api('/git/commits',{method:'POST',body:{message:'Render previews: '+sourceSha.slice(0,12)+' ('+report.status+')',tree:nextTree.sha,parents:[parentSha]}});

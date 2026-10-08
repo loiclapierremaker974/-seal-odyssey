@@ -10,9 +10,9 @@ function fixture() {
       this.listeners.get(type).add(callback);
     }
     removeEventListener(type, callback) { this.listeners.get(type)?.delete(callback); }
-    emit(type, code, target = this) {
+    emit(type, code, target = this, repeat = false) {
       const event = {
-        code, target, defaultPrevented: false,
+        code, target, repeat, defaultPrevented: false,
         preventDefault() { this.defaultPrevented = true; },
       };
       for (const callback of this.listeners.get(type) || []) callback(event);
@@ -72,4 +72,10 @@ test('game movement continues after a toolbar button keeps focus', () => {
   window.emit('keyup', 'KeyW', button);
   assert.equal(input.getState().move.y, 0);
   input.destroy();
+});
+
+test('held actions cleared by modal reset require release',()=>{
+ const {window,canvas,input}=fixture();window.emit('keydown','KeyE',canvas);assert.equal(input.consumePressed('action'),true);input.reset();
+ window.emit('keydown','KeyE',canvas,true);assert.equal(input.isDown('action'),false);assert.equal(input.consumePressed('action'),false);
+ window.emit('keyup','KeyE',canvas);window.emit('keydown','KeyE',canvas);assert.equal(input.consumePressed('action'),true);input.destroy();
 });

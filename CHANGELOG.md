@@ -2,6 +2,13 @@
 
 Les changements notables de cette reprise locale sont consignés ici. Le format suit l'esprit de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et les versions applicatives suivent le versionnage sémantique quand il devient pertinent.
 
+## [0.8.0] - 2026-10-08
+
+- Nouvelle exploration illustrée vue de haut, trois îles originales et voyages.
+- Six poses de Luma, glissade, bond, réception, nage et plongée ; eau, rides et sillages animés.
+- Terrain issu des PNG, forêts denses bloquantes, chemins de sable et mosaïque praticables.
+- Soins, progression, sauvegardes et combats conservés ; commandes portrait et paysage.
+
 ## [0.7.0] - 2026-10-07
 
 ### Amélioré

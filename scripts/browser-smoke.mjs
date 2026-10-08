@@ -10,39 +10,17 @@ const workspace = resolve(process.env.GITHUB_WORKSPACE || process.cwd());
 const artifactDirectory = join(workspace, 'artifacts-smoke');
 const basePath = process.env.VITE_BASE_PATH || '/-seal-odyssey/';
 const appURL = new URL(basePath, 'http://127.0.0.1:4173').href;
-const scenarios = [
-  {
-    name: 'desktop-high', expectedQuality: 'high',
-    options: { viewport: { width: 960, height: 540 }, deviceScaleFactor: 1, hasTouch: false, isMobile: false },
-  },
-  {
-    name: 'touch-landscape-low', expectedQuality: 'low',
-    options: {
-      viewport: { width: 844, height: 390 }, deviceScaleFactor: 1,
-      hasTouch: true, isMobile: true,
-      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
-    },
-  },
+const mobileUA='Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
+const scenarios=[
+ {name:'desktop-islands',expectedQuality:'high',fullJourney:true,options:{viewport:{width:960,height:540},deviceScaleFactor:1,hasTouch:false,isMobile:false}},
+ {name:'touch-islands',expectedQuality:'low',options:{viewport:{width:844,height:390},deviceScaleFactor:1,hasTouch:true,isMobile:true,userAgent:mobileUA}},
+ {name:'portrait-islands',expectedQuality:'low',options:{viewport:{width:390,height:844},deviceScaleFactor:1,hasTouch:true,isMobile:true,userAgent:mobileUA}},
 ];
-scenarios.push({
-  name:'desktop-battle', expectedQuality:'high', battle:true,
-  options:{viewport:{width:960,height:540},deviceScaleFactor:1,hasTouch:false,isMobile:false},
-});
-// Targeted original-art checks exercise actual touch commands and portrait layout.
-if(process.env.SEAL_SMOKE_CASE==='battle'){
- scenarios.splice(0,scenarios.length,scenarios.find(s=>s.name==='desktop-battle'),{
-  name:'touch-battle',expectedQuality:'low',battle:true,
-  options:{viewport:{width:844,height:390},deviceScaleFactor:1,hasTouch:true,isMobile:true,userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'},
- },{
-  name:'portrait-battle',expectedQuality:'low',battle:true,
-  options:{viewport:{width:390,height:844},deviceScaleFactor:1,hasTouch:true,isMobile:true,userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'},
- });
-}
 const report = {
   schemaVersion: 1, startedAt: new Date().toISOString(),
   gitSha: process.env.GITHUB_SHA || null, appURL,
   backendRequested: 'Chromium ANGLE SwiftShader',
-  scope: 'Production startup, real GLSL compilation/linking, draw calls, actual keyboard/touch belly hops, shore/water transitions and UI interactions. The capture context retains its drawing buffer for screenshots; no visual quality, frame-rate or real-device assertion.',
+  scope: 'Native island exploration on desktop, touch landscape and portrait, real WebGL compilation and draw calls, native joystick and keyboard movement, hops, live care, island travel and diving. Desktop additionally checks the three Echoes, gated Site, all six combat commands and saved progress after reload. Actual Chromium screenshots, no FPS or physical-device assertion.',
   capturePolicy:{testOnlyFramebufferRetention:true,screenshotSource:'Chromium native view',rendererSourceChanged:false},
   cases: [], failures: [],
 };
@@ -100,7 +78,7 @@ function installWebGLProbe() {
     const result = originalLinkProgram.call(this, program);
     const source = (this.getAttachedShaders(program) || []).map((shader) => this.getShaderSource(shader) || '').join('\n');
     const linked = Boolean(this.getProgramParameter(program, this.LINK_STATUS));
-    const kind = source.includes('uShallow') ? 'water' : (source.includes('uTop') && source.includes('uWarm')) ? 'sky' : 'other';
+    const kind = source.includes('uShallow') || /\bu(?:WorldTime|Time)\b/.test(source) ? 'water' : 'other';
     probe.linkedPrograms.push({ kind, linked });
     if (!linked) probe.shaderFailures.push({ stage: 'link', kind, log: this.getProgramInfoLog(program) || 'Linking failed without a driver log.' });
     return result;
@@ -117,10 +95,10 @@ async function captureRuntime(page) {
     const gl = canvas?.getContext('webgl2');
     const debug = gl?.getExtension('WEBGL_debug_renderer_info');
     const terms = [...document.querySelectorAll('[data-debug-list] dt')];
-    const quality = terms.find((term) => term.textContent === 'Rendu')?.nextElementSibling?.textContent || null;
+    const quality = canvas?.dataset.quality || null;
     return {
       probe: window.__sealSmokeWebGL || null, quality,
-      canvas: canvas ? { width: canvas.width, height: canvas.height } : null,
+      canvas: canvas ? { width:canvas.width,height:canvas.height,exploration:canvas.dataset.exploration,worldArt:canvas.dataset.worldArt,activeIsland:canvas.dataset.activeIsland } : null,
       graphics: gl ? {
         version: gl.getParameter(gl.VERSION),
         renderer: gl.getParameter(debug ? debug.UNMASKED_RENDERER_WEBGL : gl.RENDERER),
@@ -145,7 +123,7 @@ function assertRuntime(runtime, scenario) {
   assert.deepEqual(runtime.probe.shaderFailures, [], 'Real shader compilation/linking failed.');
   assert.ok(runtime.probe.compiledShaders > 0, 'No actual shader compilation was observed.');
   assert.ok(runtime.probe.drawCalls > 0, 'No actual draw call was observed.');
-  for (const kind of ['water', 'sky']) assert.ok(runtime.probe.linkedPrograms.some((program) => program.kind === kind && program.linked), 'No successfully linked ' + kind + ' shader was observed.');
+  for (const kind of ['water', 'other']) assert.ok(runtime.probe.linkedPrograms.some((program) => program.kind === kind && program.linked), 'No successfully linked ' + kind + ' shader was observed.');
 }
 async function activateButton(page, locator, keyboard) {
   if (keyboard) { await locator.focus(); await page.keyboard.press('Enter'); }
@@ -195,7 +173,7 @@ function installMotionTrace() {
   const trace = {events:[],latest:null,captureHop:false,captured:false,captureScheduled:false};
   window.__sealSmokeMotion=trace;
   document.addEventListener('seal:motion-state', event => {
-    const state={...event.detail};
+    const state={...event.detail,sampledAt:performance.now()};
     trace.latest=state; trace.events.push(state);
     if(trace.events.length>128)trace.events.shift();
     if(trace.captureHop && !trace.captureScheduled && state.jumpStage==='air' && state.jumpHeight>=.18) {
@@ -278,13 +256,95 @@ async function assertCombatLayout(panel,phase){
   }
 }
 
+
+async function motion(page){await page.waitForFunction(()=>Number.isFinite(window.__sealSmokeMotion?.latest?.x));return page.evaluate(()=>({...window.__sealSmokeMotion.latest}));}
+async function travelLayout(page){
+ const cards=await page.locator('[data-travel]').evaluateAll(nodes=>nodes.map(n=>{const r=n.getBoundingClientRect();return {id:n.dataset.travel,x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom,hit:document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('[data-travel]')===n,vw:innerWidth,vh:innerHeight};}));
+ assert.deepEqual(cards.map(c=>c.id).sort(),['lagune','rivage','ruines']);
+ for(const c of cards){assert.ok(c.width>=44&&c.height>=44&&c.x>=-1&&c.y>=-1&&c.right<=c.vw+1&&c.bottom<=c.vh+1&&c.hit,JSON.stringify(c));}
+ return cards;
+}
+async function travel(page,id,scenario){
+ await travelLayout(page);
+ if(await page.locator('canvas.game-canvas').getAttribute('data-active-island')!==id){const b=page.locator('[data-travel="'+id+'"]');if(scenario.options.hasTouch)await b.tap();else await b.click();}
+ await page.waitForFunction(id=>window.__sealSmokeMotion?.latest?.islandId===id&&window.__sealSmokeMotion.latest.jumpStage==='idle',id);
+ const at=await motion(page);assert.equal(at.islandId,id);return at;
+}
+async function axis(page,key,target,tolerance=.4,encounter=false){
+ await page.locator('canvas.game-canvas').focus();const from=await motion(page),sign=Math.sign(target-from[key]);
+ if(Math.abs(target-from[key])<=tolerance)return {ok:true,at:from};
+ const code=key==='x'?(sign>0?'ArrowRight':'ArrowLeft'):(sign>0?'ArrowDown':'ArrowUp');
+ let prev=from[key],changed=Date.now(),at=from;const end=Date.now()+25000;await page.keyboard.down(code);
+ try{while(Date.now()<end){await page.waitForTimeout(100);at=await motion(page);
+ if(await page.locator('.battle-panel').isVisible()){if(encounter)return {ok:true,encounter:true,at};throw Error('Encounter on quest route '+JSON.stringify(at));}
+ if(sign*(at[key]-target)>=-tolerance)return {ok:true,at};
+ if(Math.abs(at[key]-prev)>.025){changed=Date.now();prev=at[key];}if(Date.now()-changed>4500)return {ok:false,key,target,at};
+ }return {ok:false,key,target,at};}finally{await page.keyboard.up(code);}
+}
+async function walk(page,target){
+ const attempts=[];
+ for(let pass=0;pass<5;pass++){const at=await motion(page);if(Math.hypot(at.x-target.x,at.z-target.z)<=.65)return {at,attempts};
+ const keys=['x','z'].sort((a,b)=>Math.abs(target[b]-at[b])-Math.abs(target[a]-at[a]));
+ for(const key of keys){const r=await axis(page,key,target[key]);attempts.push(r);if(!r.ok){const k=key==='x'?'z':'x',center=k==='x'?{rivage:0,lagune:40,ruines:80}[r.at.islandId]:0;attempts.push(await axis(page,k,Math.max(center-13.5,Math.min(center+13.5,r.at[k]+[1.2,-1.2,2.4,-2.4,1.2][pass])),.3));}}}
+ const at=await motion(page);assert.ok(Math.hypot(at.x-target.x,at.z-target.z)<=1,'Blocked native path '+JSON.stringify({target,at,attempts}));return {at,attempts};
+}
+async function nativeMove(page,scenario,session){
+ const before=await motion(page);
+ if(scenario.options.hasTouch){
+ const b=await page.locator('[data-analog="move"]').boundingBox();assert.ok(b&&b.width>=44&&b.height>=44);const x=b.x+b.width/2,y=b.y+b.height/2,r=Math.min(b.width,b.height)*.38,point=(x,y)=>({x,y,id:7,radiusX:8,radiusY:8,force:.7});
+ await session.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[point(x,y)]});
+ try{await session.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[point(x-r*.8,y)]});await page.waitForFunction(s=>window.__sealSmokeMotion.latest.x<s.x-.4,before,{polling:100});}finally{await session.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});}
+ }else{await page.locator('canvas.game-canvas').focus();await page.keyboard.down('ArrowLeft');try{await page.waitForFunction(s=>window.__sealSmokeMotion.latest.x<s.x-.4,before,{polling:100});}finally{await page.keyboard.up('ArrowLeft');}}
+ await page.waitForTimeout(200);const after=await motion(page);assert.equal(after.islandId,before.islandId);assert.ok(after.x<before.x-.3);return {before,after,input:scenario.options.hasTouch?'CDP native joystick':'ArrowLeft'};
+}
+async function action(page){await page.locator('canvas.game-canvas').focus();await page.keyboard.press('KeyE');}
+async function saved(page){return page.evaluate(()=>{const e=JSON.parse(localStorage.getItem('seal-odyssey:save')||'null');return e?{schemaVersion:e.schemaVersion,...e.state}:null;});}
+async function echo(page,id,target,count){
+ const path=await walk(page,target);await action(page);await page.waitForFunction(n=>document.querySelector('[data-echo-current]')?.textContent===String(n),count);
+ await page.waitForFunction(id=>{try{return JSON.parse(localStorage.getItem('seal-odyssey:save'))?.state?.progress?.echoes?.discovered?.includes(id);}catch{return false;}},id,{timeout:10000});
+ const state=await saved(page);assert.equal(state.progress.echoes.discovered.length,count);assert.equal(new Set(state.progress.echoes.discovered).size,count);return {id,path};
+}
+async function care(page,scenario,screenshot){
+ const before=await motion(page),b=page.getByRole('button',{name:'Prendre soin de Luma',exact:true});if(scenario.options.hasTouch)await b.tap();else await b.click();
+ const panel=page.getByRole('dialog',{name:'Un moment avec Luma',exact:true});await panel.waitFor({state:'visible'});
+ assert.equal(await page.locator('[data-care-surface] canvas').count(),1);
+ await page.waitForFunction(()=>{const c=document.querySelector('[data-care-surface] canvas');return c&&c.width>100&&c.height>100&&!c.inert;});await page.waitForTimeout(500);await screenshot('care');
+ const feed=panel.locator('[data-care-mode="feed"]'),surface=panel.locator('[data-care-surface]');if(scenario.options.hasTouch){await feed.tap();await surface.tap();}else{await feed.click();await surface.focus();await page.keyboard.press('Enter');}
+ await page.waitForFunction(()=>document.querySelector('[data-care-feedback]')?.dataset.accepted==='true');
+ const close=page.getByRole('button',{name:'Fermer le soin',exact:true});if(scenario.options.hasTouch)await close.tap();else await close.click();await panel.waitFor({state:'hidden'});
+ assert.equal(await page.locator('#app > canvas').count(),1);await page.waitForFunction(s=>window.__sealSmokeMotion.latest.sampledAt>s.sampledAt,before);
+ const after=await motion(page);assert.ok(Math.hypot(after.x-before.x,after.z-before.z)<.1);return {accepted:true,before,after};
+}
+async function journey(page,scenario,screenshot){
+ const result={fullQuest:!!scenario.fullJourney,echoes:[]};
+ await travel(page,'ruines',scenario);await screenshot('ruins');
+ if(scenario.fullJourney){await walk(page,{x:80,z:-2});await action(page);await page.waitForFunction(()=>/Il manque/.test(document.querySelector('[data-toast]')?.textContent||''));assert.equal((await saved(page)).progress.ancientSite.activated,false);}
+ await travel(page,'rivage',scenario);if(scenario.fullJourney)result.echoes.push(await echo(page,'echo-rivage',{x:2,z:2},1));
+ await travel(page,'lagune',scenario);await screenshot('lagoon');if(scenario.fullJourney)result.echoes.push(await echo(page,'echo-lagune',{x:37,z:1},2));
+ result.path=await walk(page,{x:45,z:-1});await page.waitForFunction(()=>window.__sealSmokeMotion.latest.mode==='surface');await screenshot('swimming');
+ if(scenario.options.hasTouch)await page.getByRole('button',{name:'Plonger',exact:true}).tap();else{await page.locator('canvas.game-canvas').focus();await page.keyboard.press('KeyQ');}
+ await page.waitForFunction(()=>window.__sealSmokeMotion.latest.mode==='underwater'&&window.__sealSmokeMotion.latest.y<-.35,undefined,{polling:100});await screenshot('underwater');
+ if(scenario.fullJourney)result.echoes.push(await echo(page,'echo-profondeur',{x:45,z:-1},3));
+ if(scenario.options.hasTouch)await page.getByRole('button',{name:'Remonter',exact:true}).tap();else{await page.locator('canvas.game-canvas').focus();await page.keyboard.press('Space');}
+ await page.waitForFunction(()=>window.__sealSmokeMotion.latest.mode==='surface',undefined,{polling:100});
+ if(scenario.fullJourney){await travel(page,'ruines',scenario);await walk(page,{x:80,z:-2});await action(page);await page.waitForFunction(()=>{try{return JSON.parse(localStorage.getItem('seal-odyssey:save')).state.progress.ancientSite.activated;}catch{return false;}},undefined,{timeout:10000});
+ const state=await saved(page);assert.deepEqual([...state.progress.echoes.discovered].sort(),['echo-lagune','echo-profondeur','echo-rivage']);assert.equal(state.seals.luma.memory.echoes.length,3);await screenshot('ruins-restored');result.siteActivated=true;}
+ return result;
+}
+async function persistence(page){
+ const before=await saved(page);assert.equal(before.schemaVersion,1);assert.equal(before.progress.ancientSite.activated,true);assert.equal(before.seals.luma.memory.events.filter(e=>e?.type==='current-appeased'&&e.encounterId==='shore-remnant').length,1);
+ await page.reload({waitUntil:'domcontentloaded'});await page.getByRole('button',{name:'Entrer dans Aqualys',exact:true}).waitFor({state:'visible',timeout:60000});await page.waitForFunction(()=>!document.querySelector('[data-start]').disabled);
+ const after=await saved(page);assert.deepEqual(after.progress,before.progress);assert.deepEqual(after.seals.luma.memory,before.seals.luma.memory);await activateButton(page,page.getByRole('button',{name:'Entrer dans Aqualys',exact:true}),true);return {schemaVersion:1,threeEchoes:true,siteRestored:true,reloaded:true};
+}
+
 async function testCombat(page,screenshot,scenario) {
   const panel=page.locator('.battle-panel');
-  await page.locator('canvas.game-canvas').click({position:{x:10,y:10}});
-  await page.keyboard.down('Shift');await page.keyboard.down('ArrowRight');
-  try {
-    await panel.waitFor({state:'visible',timeout:120000});
-  } finally {await page.keyboard.up('ArrowRight');await page.keyboard.up('Shift');}
+  await travel(page,'rivage',scenario);
+  if(!await panel.isVisible()){const step=await axis(page,'z',5,.3,true);assert.ok(step.ok,'Shore encounter path blocked '+JSON.stringify(step));}
+  if(!await panel.isVisible()){
+   await page.locator('canvas.game-canvas').focus();const at=await motion(page),key=at.x<5?'ArrowRight':'ArrowLeft';await page.keyboard.down(key);
+   try{await panel.waitFor({state:'visible',timeout:60000});}finally{await page.keyboard.up(key);}
+  }
   const entry=await page.evaluate(()=>({...window.__sealSmokeMotion.latest}));
   assert.equal(await panel.getAttribute('data-battle-state'),'active');
   assert.equal(await panel.locator('[data-battle-action]').count(),6);
@@ -319,6 +379,7 @@ async function testCombat(page,screenshot,scenario) {
   if(scenario.options.hasTouch)await panel.locator('[data-battle-close]').tap();else await panel.locator('[data-battle-close]').click();
   await panel.waitFor({state:'hidden'});
   assert.equal(await page.locator('canvas.game-canvas').evaluate(c=>document.activeElement===c),true,'Exploration must regain keyboard focus.');
+  await page.waitForFunction(s=>window.__sealSmokeMotion.latest.sampledAt>s.sampledAt,entry);
   const returned=await page.evaluate(()=>({...window.__sealSmokeMotion.latest}));
   assert.ok(Math.hypot(returned.x-entry.x,returned.z-entry.z)<.08,'Battle must return to the same world position.');
   await page.waitForFunction(()=>localStorage.getItem('seal-odyssey:save')?.includes('current-appeased'),undefined,{timeout:10000});
@@ -370,7 +431,7 @@ async function runScenario(scenario) {
         for(let i=0;i<data.length;i+=4){if(data[i+3]>240)opaque++;if(data[i]+data[i+1]+data[i+2]>12)lit++;}
         return {opaque,lit,retained:gl.getContextAttributes().preserveDrawingBuffer};
       });
-      assert.ok(pixels?.retained&&pixels.opaque>40&&pixels.lit>16,'Capture must contain the actual opaque 3D framebuffer: '+phase);
+      assert.ok(pixels?.retained&&pixels.opaque>40&&pixels.lit>16,'Capture must contain the actual opaque game framebuffer: '+phase);
       // Capture the compositor's actual frozen frame directly. Playwright's
       // screenshot preparation waits for extra animation frames during layout
       // changes, which cannot complete while the apex/capture RAF gate is held.
@@ -390,7 +451,7 @@ async function runScenario(scenario) {
       };
       await capture('png',join(artifactDirectory,filename));
       result.screenshots.push(filename);
-      if (['exploration', 'failure', 'care', 'belly-hop', 'swimming', 'underwater', 'combat', 'combat-victory'].includes(phase)) {
+      if (['exploration','lagoon','ruins','ruins-restored','failure','care','belly-hop','swimming','underwater','combat','combat-victory'].includes(phase)) {
         await capture('jpeg',join(artifactDirectory,scenario.name+'-'+phase+'.jpg'));
       }
     } finally {
@@ -403,10 +464,11 @@ async function runScenario(scenario) {
     // Settle UI transitions before capture; avoid layout/ResizeObserver changes
     // while the WebGL frame gate holds the portrait canvas.
     await page.addStyleTag({content:'*,*::before,*::after{animation-duration:0s!important;animation-delay:0s!important;transition-duration:0s!important;transition-delay:0s!important;}'});
-    await page.getByRole('button', { name: 'Entrer dans Aqualys', exact: true }).waitFor({ state: 'visible' });
+    await page.getByRole('button', { name: 'Entrer dans Aqualys', exact: true }).waitFor({ state: 'visible',timeout:60000 });
+    await page.waitForFunction(()=>document.querySelector('[data-start]')?.disabled===false,undefined,{timeout:60000});
     await page.waitForFunction(() => {
       const probe = window.__sealSmokeWebGL;
-      return probe?.drawCalls > 0 && ['water', 'sky'].every((kind) => probe.linkedPrograms.some((program) => program.kind === kind && program.linked));
+      return probe?.drawCalls > 0 && ['water', 'other'].every((kind) => probe.linkedPrograms.some((program) => program.kind === kind && program.linked));
     }, undefined, { timeout: 20000 });
     result.beforeStart = await captureRuntime(page);
     assertRuntime(result.beforeStart, scenario);
@@ -415,32 +477,15 @@ async function runScenario(scenario) {
     await page.waitForFunction(() => document.querySelector('[data-intro]')?.hidden === true);
     result.sound = await testSoundToggle(page, scenario.expectedQuality === 'high');
     await screenshot('exploration');
-    if(scenario.battle){
-      result.combat=await testCombat(page,screenshot,scenario);
-    }else{
+    assert.equal(result.beforeStart.canvas.exploration,'isles');
+    assert.equal(result.beforeStart.canvas.worldArt,'illustrated');
+    result.nativeMovement=await nativeMove(page,scenario,captureSession);
+    assert.equal((await motion(page)).mode,'land');
     result.bellyHop=await testBellyHop(page,scenario,screenshot);
-    await page.getByRole('button', { name: 'Prendre soin de Luma', exact: true }).click();
-    await page.getByRole('dialog', { name: 'Un moment avec Luma', exact: true }).waitFor({ state: 'visible' });
-
-    assert.equal(await page.locator('[data-care-surface] canvas').count(), 1, 'Care must display the live 3D canvas.');
-    await page.waitForFunction(() => {
-      const c=document.querySelector('[data-care-surface] canvas');
-      return c && c.width>100 && c.height>100 && c.inert===false;
-    });
-    await page.waitForTimeout(700); // Allow the portrait camera's eased transition.
-    await screenshot('care');
-    await page.getByRole('button', {name:'Nourrir', exact:false}).click();
-    const surface=page.locator('[data-care-surface]');
-    const feedbackBefore=await page.locator('[data-care-feedback]').textContent();
-    await surface.focus();
-    await page.keyboard.press('Enter');
-    assert.notEqual(await page.locator('[data-care-feedback]').textContent(),feedbackBefore,'Care input must reach the care system.');
-
-    await page.getByRole('button', { name: 'Fermer le soin', exact: true }).click();
-    await page.getByRole('dialog', { name: 'Un moment avec Luma', exact: true }).waitFor({ state: 'hidden' });
-    assert.equal(await page.locator('#app > canvas').count(),1,'The live canvas must return to exploration.');
-    if(scenario.expectedQuality==='high')result.swimming=await testSwimming(page,screenshot);
-    }
+    result.travelLayout=await travelLayout(page);
+    result.care=await care(page,scenario,screenshot);
+    result.journey=await journey(page,scenario,screenshot);
+    if(scenario.fullJourney){result.combat=await testCombat(page,screenshot,scenario);result.persistence=await persistence(page);}
     result.afterInteractions = await captureRuntime(page);
     assertRuntime(result.afterInteractions, scenario);
     assert.deepEqual(result.pageErrors, [], 'Uncaught browser errors occurred.');

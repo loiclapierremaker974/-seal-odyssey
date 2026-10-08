@@ -138,6 +138,7 @@ export class InputController {
   _bindBaseEvents() {
     this._listen(this.window, 'keydown', (event) => {
       if (event.defaultPrevented || this._isInterfaceTarget(event, true)) return;
+      if (event.repeat && !this._keys.has(event.code)) return;
       const isMovement = MOVEMENT_KEYS.has(event.code);
       const button = KEY_TO_BUTTON[event.code];
       if (!isMovement && !button) return;

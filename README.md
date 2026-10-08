@@ -136,3 +136,8 @@ Voir [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md), [docs/ASSET_INVENTORY.md]
 ## Propriété et canon
 
 Le projet et son dossier maître sont attribués à Loïc Lapierre. Les noms, systèmes et contenus restent soumis au canon consolidé et aux validations de droits décrits dans le dossier maître. Ne pas intégrer d'asset externe dans une version distribuée sans licence vérifiée et archivée.
+
+
+## Exploration 0.8 — 2026-10-08
+
+Trois îles originales illustrées vues de haut, voyages, six poses de Luma, bonds, nage et plongée. Flèches/WASD ou joystick, E interagit, Espace bondit/remonte, Q plonge. Les soins, trois Échos, Site Ancien, sauvegardes et combats illustrés restent compatibles. Rendu animé en 2.5D ; le modèle 3D final et le jeu complet restent à produire. Pas de mesure FPS sur appareil physique.
