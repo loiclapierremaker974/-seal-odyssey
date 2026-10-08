@@ -2,6 +2,15 @@
 
 Les changements notables de cette reprise locale sont consignés ici. Le format suit l'esprit de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et les versions applicatives suivent le versionnage sémantique quand il devient pertinent.
 
+## [0.9.1] - 2026-10-08
+
+- Animations de Luma orientées selon son anatomie : nageoires et queue bougent sans torsion globale du visage.
+- Petits mouvements de maintien à l’arrêt dans l’eau ; bonds plus lisibles, anticipation et réception souples, ombre liée à la hauteur.
+- Transitions de teinte et d’opacité progressives pendant la plongée ; bulles à la descente et à la remontée.
+- Eau continue avec caustiques animées et reflets irréguliers ; végétation moins saturée.
+- Préparation distincte des deux gestes de vague en combat et retour tactile des boutons.
+- Documentation de reprise actualisée et export local complet conservé.
+
 ## [0.9.0] - 2026-10-08
 
 - Exploration construite comme une carte RPG vue de haut : chemins, berges, bosquets, places et pontons distincts.

@@ -9,7 +9,7 @@ float ripple(vec2 p){float value=0.0;for(int i=0;i<16;i++){vec4 r=uRipples[i];fl
 void main(){
  vec2 p=vUv;float n=noise(floor(vWorld));if(n>.5)p.x=1.0-p.x;
  vec3 color=sampleTile(min(vType,5.0),p);
- if(vType<.5||vType>4.5&&vType<5.5)color*=.96+n*.08;
+ if(vType<.5||vType>4.5&&vType<5.5){color*=.88+n*.05;color=mix(vec3(dot(color,vec3(.2126,.7152,.0722))),color,.84);}
  if(vType>1.5&&vType<2.5){
   float nearGrass=0.0;
   nearGrass=max(nearGrass,bit(vGrass,0.0)*(1.0-smoothstep(.04,.17,vUv.x)));
@@ -20,7 +20,11 @@ void main(){
  }
  if(vType>3.5&&vType<4.5){
   vec2 drift=vec2(sin(uTime*.45+vWorld.y*.7),cos(uTime*.37+vWorld.x*.8))*.012;
-  color=sampleTile(4.0,clamp(p+drift,vec2(.006),vec2(.994)));
+  float waves=sin(vWorld.x*.73+vWorld.y*.39-uTime*.47)*cos(vWorld.y*.91-uTime*.32);
+  vec3 blue=mix(vec3(.018,.27,.32),vec3(.045,.49,.48),.52+waves*.18);
+  color=mix(blue,sampleTile(4.0,clamp(p+drift,vec2(.006),vec2(.994))),.16);
+  float threads=abs(sin(vWorld.x*2.8+sin(vWorld.y*1.7+uTime*.3))+cos(vWorld.y*2.9+sin(vWorld.x*1.9-uTime*.25)));
+  color+=vec3(.10,.20,.14)*(1.0-smoothstep(.015,.075,threads))*.38;
   color+=vec3(.08,.14,.15)*ripple(vWorld);
   color+=sin(uTime*.6+vWorld.x*2.0+vWorld.y*.9)*.012;
  }

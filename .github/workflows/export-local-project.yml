@@ -2,7 +2,7 @@ name: Export complete local Seal Odyssey
 on:
   push:
     branches: ['codex/overhead-world-2026-10-08']
-    paths: ['.github/workflows/export-local-project.yml','PROJET-LOCAL.md','scripts/serve-offline.mjs']
+    paths: ['.github/workflows/export-local-project.yml','PROJET-LOCAL.md','scripts/serve-offline.mjs','package.json']
   workflow_dispatch:
 permissions:
   contents: read

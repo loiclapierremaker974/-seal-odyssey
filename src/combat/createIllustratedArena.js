@@ -116,11 +116,13 @@ export function createIllustratedArena({backgrounds={},sealTexture,currentTextur
   const index=frames.length>1?(entry?Math.min(frames.length-1,Math.floor(frameAge*fps)):Math.floor(frameAge*fps)%frames.length):0;
   poseName=poses[next]?next:'idle';frameIndex=index;activateFrame(frames[index]);
   seal.position.copy(actor.position);seal.quaternion.copy(camera.quaternion);
-  const breath=Math.sin(finite(time)*1.75)*.008,prep=next==='prepare'?Math.sin(progress*Math.PI)*.025:0;
-  seal.scale.set(1+prep*.4,1+breath-prep-(next==='sad'?.025:0),1);
+  const breath=Math.sin(finite(time)*1.75)*.008;
+  const prep=next==='prepare'?Math.sin(progress*Math.PI)*(event?.actionId==='strong-wave'?.055:.028):0;
+  const release=next==='attack'?Math.sin(clamp((progress-.4)/.6)*Math.PI)*.026:0;
+  seal.scale.set(1+prep*.4+release,1+breath-prep-release*.4-(next==='sad'?.025:0),1);
   if(next==='curious')seal.rotateZ(Math.sin(finite(time)*1.4)*.018);else if(next==='happy')seal.rotateZ(Math.sin(finite(time)*1.6)*.008);
   shadow.position.set(actor.position.x,.035,.13);shadow.quaternion.copy(camera.quaternion);
-  const lift=Math.max(0,actor.position.y-.04);shadow.scale.setScalar(1-lift*.55);shadowMaterial.uniforms.uOpacity.value=.23-lift*.5;
+  const lift=Math.max(0,actor.position.y-.04);shadow.scale.setScalar(Math.max(.25,1-lift*.55));shadowMaterial.uniforms.uOpacity.value=clamp(.23-lift*.5,.025,.23);
   seal.userData.pose=poseName;seal.userData.requestedPose=next;seal.userData.frameIndex=frameIndex;sealMaterial.uniforms.uOpacity.value=1;
   if(current&&opponent){
    current.position.copy(opponent.position);current.quaternion.copy(camera.quaternion);

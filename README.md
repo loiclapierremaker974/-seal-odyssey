@@ -4,10 +4,11 @@ Cette arborescence est une reprise locale propre de **Seal Odyssey** : une verti
 
 [![Test and deploy Seal Odyssey](https://github.com/loiclapierremaker974/-seal-odyssey/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/loiclapierremaker974/-seal-odyssey/actions/workflows/deploy-pages.yml)
 
-> [!IMPORTANT]
-> Le dossier maître décrit une bêta avancée et cite un ancien dépôt GitHub, mais ni les sources de cette bêta, ni son archive ZIP, ni un dépôt exploitable n'étaient présents dans la transmission du 2 octobre 2026. Cette fondation ne prétend donc pas être cette bêta. La version 0.7.0 intègre trois décors originaux pour les rencontres, six poses détaillées de Luma et six icônes SVG. Le rivage illustré est validé par le créateur comme référence artistique. L'exploration et les soins restent en 3D procédurale. La version 0.6.0 reprend la silhouette et les articulations de Luma, ajoute des bosquets, fougères, fleurs, coraux, poissons réactifs et une petite faune animée, et enrichit les effets des rencontres. Les feuilles flottantes suivent l'eau et réagissent au contact ; ce sont des plantes décoratives. La version 0.5.0 ajoute trois rencontres tactiques au cadrage fixe et six gestes de combat centrés sur l’apaisement. La version 0.4.0 ajoute une progression sur le ventre, des petits bonds avec anticipation et réception, une nage avec flexion du corps, des effets de sable et d’eau et une surface qui réagit aux impacts et porte Luma. Le pelage et les falaises reprennent la fiche visible du 6 octobre. Les modèles restent procéduraux et la qualité de l’illustration reste une cible artistique.
+La bêta **0.9.1** utilise une exploration RPG vue de haut : trois cartes construites avec chemins, végétation, berges et pontons, douze poses originales de Luma dans quatre directions, nage, bonds et plongée. Le cadrage est légèrement rapproché pour conserver les détails du personnage. Les combats restent au plan fixe dans trois décors dédiés, avec six gestes tactiques et leurs icônes.
 
-Les dossiers de référence transmis par le créateur restent des sources de travail privées. Ils ne sont pas intégrés comme assets de production : leur provenance et leur usage final doivent d'abord être confirmés. Les exécutables sans rapport avec le jeu ont été laissés intacts.
+Les trois Échos et le Site de l’Onde Première utilisent les identifiants canoniques. La sauvegarde, les soins et les souvenirs de Luma restent compatibles avec les versions précédentes. Il s’agit d’une bêta jouable ; la fiche de présentation et le dossier maître restent la direction artistique et le programme de développement.
+
+Pour conserver le projet hors du cloud, consultez [PROJET-LOCAL.md](PROJET-LOCAL.md). L’export inclut les fichiers du dépôt, le jeu compilé et l’historique Git. Conservez également les PDF et les références fournis dans ChatGPT, qui ne font pas partie du dépôt.
 
 ## Démarrage local
 

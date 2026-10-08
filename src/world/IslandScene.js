@@ -1,3 +1,4 @@
+import {sampleLumaPresentation} from './lumaPresentation.js';
 import {createOverworld,sampleOverworld,facingDirection,TILE} from './overworldData.js';
 import {extractSpriteComponents} from './overworldAtlas.js';
 import {loadOverworldAssets,DIRECTIONS,PROP_KINDS,propMaterial} from './overworldSprites.js';
@@ -67,19 +68,19 @@ function readPixels(image,documentRef,maximum=null){
 const WORLD_VERTEX='varying vec2 vUv;varying vec2 vWorld;void main(){vUv=uv;vec4 p=modelMatrix*vec4(position,1.0);vWorld=p.xz;gl_Position=projectionMatrix*viewMatrix*p;}';
 const RIPPLE_GLSL='uniform vec4 uRipples[16];float ripple(vec2 p){float value=0.0;for(int i=0;i<16;i++){vec4 r=uRipples[i];float age=uTime-r.z;if(r.w>0.0&&age>=0.0&&age<1.8){float d=length(p-r.xy);float ring=1.0-smoothstep(.08,.25,abs(d-age*1.8));value+=ring*(1.0-age/1.8)*r.w;}}return value;}';
 function seaMaterial(clock,ripples){
- return new THREE.ShaderMaterial({uniforms:{uTime:clock,uRipples:{value:ripples}},vertexShader:WORLD_VERTEX,fragmentShader:'uniform float uTime;varying vec2 vUv;varying vec2 vWorld;'+RIPPLE_GLSL+'void main(){float waves=sin(vWorld.x*.62+vWorld.y*.94-uTime*.44)*sin(vWorld.y*.71-uTime*.29);float glint=pow(max(0.0,sin(vWorld.x*7.3+vWorld.y*9.1-uTime*1.2)),24.0);vec3 color=mix(vec3(.014,.155,.205),vec3(.035,.27,.29),.5+waves*.25);color+=vec3(.05,.11,.105)*glint*.22+vec3(.12,.22,.20)*ripple(vWorld);gl_FragColor=vec4(color,1.0);\n#include <colorspace_fragment>\n}',depthWrite:false,depthTest:false,toneMapped:false});
+ return new THREE.ShaderMaterial({uniforms:{uTime:clock,uRipples:{value:ripples}},vertexShader:WORLD_VERTEX,fragmentShader:'uniform float uTime;varying vec2 vUv;varying vec2 vWorld;'+RIPPLE_GLSL+'void main(){float waves=sin(vWorld.x*.62+vWorld.y*.94-uTime*.44)*sin(vWorld.y*.71-uTime*.29);float glint=pow(max(0.0,sin(vWorld.x*3.7+sin(vWorld.y*2.9-uTime*.35))*cos(vWorld.y*4.1+sin(vWorld.x*2.3+uTime*.29))),18.0);vec3 color=mix(vec3(.014,.155,.205),vec3(.035,.27,.29),.5+waves*.25);color+=vec3(.05,.11,.105)*glint*.22+vec3(.12,.22,.20)*ripple(vWorld);gl_FragColor=vec4(color,1.0);\n#include <colorspace_fragment>\n}',depthWrite:false,depthTest:false,toneMapped:false});
 }
 function mapMaterial(texture,clock,ripples){
  return new THREE.ShaderMaterial({uniforms:{uMap:{value:texture},uTime:clock,uRipples:{value:ripples}},vertexShader:WORLD_VERTEX,fragmentShader:'uniform sampler2D uMap;uniform float uTime;varying vec2 vUv;varying vec2 vWorld;'+RIPPLE_GLSL+'void main(){vec4 base=texture2D(uMap,vUv);if(base.a<.012)discard;float green=step(base.r*1.26,base.g)*step(base.b*1.2,base.g);vec2 drift=vec2(sin(uTime*.83+vWorld.x*.63),cos(uTime*.67+vWorld.y*.5))*.00065*green;vec4 color=texture2D(uMap,clamp(vUv+drift,vec2(.0001),vec2(.9999)));float water=step(base.r*1.18,base.b)*step(base.r*1.16,base.g)*step(base.g*.78,base.b);float shine=sin(uTime*.9+vWorld.x*1.3+vWorld.y*.6)*.017;float response=water>.5?ripple(vWorld):0.0;color.rgb+=water*(shine+response*.10);gl_FragColor=color;\n#include <colorspace_fragment>\n}',transparent:true,depthWrite:false,depthTest:false,toneMapped:false});
 }
 function sealMaterial(texture){
- return new THREE.ShaderMaterial({uniforms:{uMap:{value:texture},uMask:{value:null},uComponent:{value:1},uRect:{value:new THREE.Vector4(0,0,1,1)},uSize:{value:new THREE.Vector2(2,2)},uStride:{value:0},uDrive:{value:0},uBody:{value:0},uOpacity:{value:1},uTint:{value:new THREE.Color(1,1,1)}},vertexShader:'uniform vec2 uSize;uniform float uStride;uniform float uDrive;uniform float uBody;varying vec2 vUv;void main(){vUv=uv;vec3 p=position;float edge=smoothstep(.14,.45,abs(p.x));p.x+=sin(uStride+p.y*4.0)*edge*.028*uDrive;p.y+=sin(uStride*2.0)*edge*.016*uDrive;p.xy*=uSize;p.y*=1.0+uBody;gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.0);}',fragmentShader:'uniform sampler2D uMap;uniform sampler2D uMask;uniform float uComponent;uniform vec4 uRect;uniform vec3 uTint;uniform float uOpacity;varying vec2 vUv;void main(){vec2 a=uRect.xy+vUv*uRect.zw;vec4 c=texture2D(uMap,a);float id=texture2D(uMask,vec2(a.x,1.0-a.y)).r*255.0;if(abs(id-uComponent)>.25||c.a<.012)discard;gl_FragColor=vec4(c.rgb*uTint,c.a*uOpacity);\n#include <colorspace_fragment>\n}',transparent:true,depthTest:false,depthWrite:false,toneMapped:false,side:THREE.DoubleSide});
+ return new THREE.ShaderMaterial({uniforms:{uMap:{value:texture},uMask:{value:null},uComponent:{value:1},uRect:{value:new THREE.Vector4(0,0,1,1)},uSize:{value:new THREE.Vector2(2,2)},uStride:{value:0},uFacing:{value:new THREE.Vector2(0,-1)},uDrive:{value:0},uBody:{value:0},uOpacity:{value:1},uTint:{value:new THREE.Color(1,1,1)}},vertexShader:"uniform vec2 uSize;uniform vec2 uFacing;uniform float uStride;uniform float uDrive;uniform float uBody;varying vec2 vUv;void main(){vUv=uv;vec3 p=position;vec2 side=vec2(-uFacing.y,uFacing.x);float axial=dot(p.xy,uFacing);float lateral=dot(p.xy,side);float tail=1.0-smoothstep(-.32,.12,axial);float flipper=smoothstep(.18,.40,abs(lateral));p.xy+=side*(sin(uStride+axial*4.0)*.023*tail+sign(lateral)*sin(uStride*2.0)*.012*flipper)*uDrive;p.xy+=uFacing*axial*uBody;p.xy*=uSize;gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.0);}",fragmentShader:'uniform sampler2D uMap;uniform sampler2D uMask;uniform float uComponent;uniform vec4 uRect;uniform vec3 uTint;uniform float uOpacity;varying vec2 vUv;void main(){vec2 a=uRect.xy+vUv*uRect.zw;vec4 c=texture2D(uMap,a);float id=texture2D(uMask,vec2(a.x,1.0-a.y)).r*255.0;if(abs(id-uComponent)>.25||c.a<.012)discard;gl_FragColor=vec4(c.rgb*uTint,c.a*uOpacity);\n#include <colorspace_fragment>\n}',transparent:true,depthTest:false,depthWrite:false,toneMapped:false,side:THREE.DoubleSide});
 }
 function glyphMaterial(kind,color){
  return new THREE.ShaderMaterial({uniforms:{uColor:{value:new THREE.Color(color)},uOpacity:{value:1},uPhase:{value:0},uKind:{value:kind}},vertexShader:WORLD_VERTEX,fragmentShader:'uniform vec3 uColor;uniform float uOpacity;uniform float uPhase;uniform float uKind;varying vec2 vUv;void main(){vec2 p=(vUv-.5)*2.0;float d=length(p);float a=atan(p.y,p.x);float ring=1.0-smoothstep(.035,.075,abs(d-.67));float rays=(1.0-smoothstep(.035,.08,abs(sin(a*4.0))))*smoothstep(.14,.23,d)*(1.0-smoothstep(.43,.61,d));float core=1.0-smoothstep(.08,.16,d);float spiral=(1.0-smoothstep(.05,.13,abs(sin(a*2.0-d*7.0-uPhase*.45))))*smoothstep(.13,.24,d)*(1.0-smoothstep(.43,.57,d));float shape=ring*.62+core+rays;if(uKind>1.5)shape=ring*.6+spiral+core*.3;float alpha=clamp(shape,0.0,1.0)*uOpacity;if(alpha<.005)discard;gl_FragColor=vec4(uColor,alpha);\n#include <colorspace_fragment>\n}',transparent:true,depthWrite:false,depthTest:false,toneMapped:false,side:THREE.DoubleSide});
 }
 function effectMaterial(){
- return new THREE.ShaderMaterial({uniforms:{uColor:{value:new THREE.Color(0xc7f6e5)},uProgress:{value:1},uStrength:{value:0},uKind:{value:0}},vertexShader:WORLD_VERTEX,fragmentShader:'uniform vec3 uColor;uniform float uProgress;uniform float uStrength;uniform float uKind;varying vec2 vUv;void main(){vec2 p=(vUv-.5)*2.0;float d=length(p);float ring=1.0-smoothstep(.025,.12,abs(d-(.12+uProgress*.7)));float dust=(1.0-smoothstep(.12,.92,d))*(.4+.6*sin(p.x*31.0+p.y*23.0)*sin(p.y*29.0));float alpha=(uKind>.5?dust:ring)*(1.0-uProgress)*uStrength;if(alpha<.003)discard;gl_FragColor=vec4(uColor,alpha);\n#include <colorspace_fragment>\n}',transparent:true,depthWrite:false,depthTest:false,toneMapped:false,side:THREE.DoubleSide});
+ return new THREE.ShaderMaterial({uniforms:{uColor:{value:new THREE.Color(0xc7f6e5)},uProgress:{value:1},uStrength:{value:0},uKind:{value:0}},vertexShader:WORLD_VERTEX,fragmentShader:'uniform vec3 uColor;uniform float uProgress;uniform float uStrength;uniform float uKind;varying vec2 vUv;void main(){vec2 p=(vUv-.5)*2.0;float d=length(p);float ring=1.0-smoothstep(.025,.12,abs(d-(.12+uProgress*.7)));float dust=(1.0-smoothstep(.12,.92,d))*(.4+.6*sin(p.x*31.0+p.y*23.0)*sin(p.y*29.0));float bubbles=0.0;for(int i=0;i<6;i++){float f=float(i);vec2 center=vec2(sin(f*2.4)*.45,cos(f*1.8)*.35+uProgress*.35);bubbles+=1.0-smoothstep(.01,.035,abs(length(p-center)-(.035+uProgress*.025)));}float alpha=(uKind>1.5?bubbles:uKind>.5?dust:ring)*(1.0-uProgress)*uStrength;if(alpha<.003)discard;gl_FragColor=vec4(uColor,alpha);\n#include <colorspace_fragment>\n}',transparent:true,depthWrite:false,depthTest:false,toneMapped:false,side:THREE.DoubleSide});
 }
 /** Original island plates with a live overhead Luma. */
 export class IslandScene{
@@ -281,7 +282,7 @@ export class IslandScene{
  _emitEffect(x,z,kind,strength,size=1.8,color=0xc8f1e4){
   if(this._disposed)return;
   const slot=this._effects[this._fxCursor++%this._effects.length];
-  Object.assign(slot,{age:0,duration:kind ? .55 : .95,kind,strength:clamp(strength,.04,1),x,z,size});
+  Object.assign(slot,{age:0,duration:kind===2 ? 1.25 : kind ? .55 : .95,kind,strength:clamp(strength,.04,1),x,z,size});
   slot.mesh.visible=true;slot.mesh.position.set(x,.24,z);slot.mesh.scale.setScalar(size);slot.mesh.material.uniforms.uColor.value.set(color);
  }
  _impact(x,z,strength){
@@ -292,6 +293,7 @@ export class IslandScene{
   const x=position.x,z=position.z;
   if(type==='splash'){this._impact(x,z,strength);this._emitEffect(x,z,0,strength,2.5);}
   else if(type==='land')this._emitEffect(x,z,1,strength,1.9,0xe8d1a1);
+  else if(type==='dive'||type==='surface'){this._impact(x,z,strength*.8);this._emitEffect(x,z,2,strength,1.7,0xc6f6ef);}
   else if(type==='hop')this._emitEffect(x,z,1,strength*.35,1.1,0xe9d4b1);
  }
  updateLumaMotion(position,state,delta,enabled=true){
@@ -303,22 +305,25 @@ export class IslandScene{
   const speed=enabled?finite(state.horizontalSpeed,finite(state.speed)):0;
   const water=state.mode!=='land',under=state.mode==='underwater';
   const direction=this._care?'south':facingDirection(finite(state.heading));
-  const frame=speed>.08||water?1+(Math.floor(finite(state.gaitPhase)*1.4)%2):0;
-  this._applyPose(direction+frame);
+  const pose=sampleLumaPresentation(state,this.elapsed,{enabled,care:this._care});
+  this._applyPose(direction+pose.frame);
   const material=this._seal.material,uniforms=material.uniforms;
-  uniforms.uStride.value=finite(state.gaitPhase);uniforms.uDrive.value=clamp(speed/(water?4.2:2.2));
-  const compression=state.jumpStage==='anticipation'?Math.sin(clamp(state.jumpPhase)*Math.PI)*.10:state.jumpStage==='landing'?clamp(finite(state.landing))*.09:0;
-  const breathing=Math.sin(this.elapsed*1.8)*.006;
-  uniforms.uBody.value=breathing-compression+(water&&enabled?Math.sin(finite(state.gaitPhase)*1.4)*.018*uniforms.uDrive.value:0);
-  uniforms.uTint.value.setRGB(under ? .50 : 1,under ? .84 : 1,under?1.12:1);uniforms.uOpacity.value=under ? .78 : 1;
-  const heading=this._care?0:finite(state.heading),turn=enabled?clamp(finite(state.turn),-1,1)*.035:0;
-  this._seal.quaternion.copy(this.camera.quaternion);this._seal.renderOrder=1001+position.z*10;
-  const jump=clamp(finite(state.jumpHeight),0,.65),lift=1+jump*.19;
-  this._seal.scale.setScalar((under ? .92 : 1)*lift);this._seal.position.set(0,.35-position.y,-jump*.18);
+  uniforms.uStride.value=pose.stride;
+  uniforms.uDrive.value=THREE.MathUtils.lerp(uniforms.uDrive.value,pose.drive,1-Math.exp(-dt*10));
+  uniforms.uFacing.value.set(direction==='east'?1:direction==='west'?-1:0,direction==='north'?1:direction==='south'?-1:0);
+  uniforms.uBody.value=pose.body;
+  const immersion=this._underwaterMix;
+  uniforms.uTint.value.setRGB(1-immersion*.50,1-immersion*.16,1+immersion*.12);
+  uniforms.uOpacity.value=1-immersion*.22;
+  const heading=this._care?0:finite(state.heading);
+  this._bank=THREE.MathUtils.lerp(this._bank||0,pose.bank,1-Math.exp(-dt*8));
+  this._seal.quaternion.copy(this.camera.quaternion);this._seal.rotateZ(this._bank);this._seal.renderOrder=1001+position.z*10;
+  const underwaterScale=1-immersion*.08;
+  this._seal.scale.set(pose.scaleX*underwaterScale,pose.scaleY*underwaterScale,1);this._seal.position.set(0,.35-position.y,-pose.lift);
   this._shadow.position.set(position.x,.2,position.z);this._shadow.quaternion.copy(this.camera.quaternion);this._shadow.rotateZ(-heading);
-  this._shadow.scale.set(1.75-jump*.3,2.1-jump*.35,1);this._shadow.material.uniforms.uOpacity.value=(water ? .055 : .19)*(1-jump*.8);
+  this._shadow.scale.set(1.75*pose.shadowScale,2.1*pose.shadowScale,1);this._shadow.material.uniforms.uOpacity.value=pose.shadowOpacity*pose.shadowScale;
   this._wakeTimer+=dt;
-  if(enabled&&water&&!state.airborne&&speed>.16&&this._wakeTimer>.24){
+  if(enabled&&water&&!state.airborne&&speed>.16&&this._wakeTimer>(this.lowPower?.28:.18)){
    this._wakeTimer=0;this._impact(position.x,position.z,.08+clamp(speed/5)*.09);
    this._emitEffect(position.x-Math.sin(heading)*.6,position.z+Math.cos(heading)*.6,0,.18,1.5);
   }

@@ -663,3 +663,11 @@ color:#ffe3a8;
 /* Keep long intent and feedback text inside the viewport in portrait. */
 .battle-header,.battle-command{min-width:0;max-width:100%}
 .battle-command{grid-template-columns:minmax(0,1fr)}
+
+/* Clear tactile feedback without changing the tactical rules. */
+.battle-action{transition:background 160ms ease,border-color 160ms ease,box-shadow 160ms ease,transform 100ms ease}
+.battle-action:active:not(:disabled){transform:translateY(2px);box-shadow:inset 0 2px 6px rgb(1 28 36 / 35%)}
+.battle-action:focus-visible{outline:2px solid #ffe7b5;outline-offset:3px}
+.battle-action__art{transition:transform 160ms ease}
+@media(hover:hover){.battle-action:hover:not(:disabled) .battle-action__art{transform:translateY(-2px)}}
+@media(prefers-reduced-motion:reduce){.battle-action,.battle-action__art{transition:none}.battle-action:active:not(:disabled){transform:none}}
