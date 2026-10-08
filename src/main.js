@@ -202,7 +202,7 @@ function boot() {
   });
 
   function openCare() {
-    if(!started||!worldReady||travelling||battle||battleLoading)return;
+    if(!started||!worldReady||travelling||battle||battleLoading||careActive)return;
     if (controller?.state.mode === 'land' && controller.state.jumpStage !== 'idle') {
       pendingCare = true;
       return;
@@ -463,8 +463,10 @@ function boot() {
   }
 
   function scheduleSave() {
-    window.clearTimeout(saveTimer);
+    // Coalesce continuous vitals without postponing progress indefinitely.
+    if (saveTimer) return;
     saveTimer = window.setTimeout(() => {
+      saveTimer = 0;
       try {
         saveStore.save(gameState);
       } catch (error) {
@@ -590,6 +592,7 @@ function boot() {
 
   const persistNow = () => {
     window.clearTimeout(saveTimer);
+    saveTimer = 0;
     try {
       saveStore.save(gameState);
     } catch {

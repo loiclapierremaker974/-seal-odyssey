@@ -322,10 +322,10 @@ async function journey(page,scenario,screenshot){
  await travel(page,'rivage',scenario);if(scenario.fullJourney)result.echoes.push(await echo(page,'echo-rivage',{x:2,z:2},1));
  await travel(page,'lagune',scenario);await screenshot('lagoon');if(scenario.fullJourney)result.echoes.push(await echo(page,'echo-lagune',{x:37,z:1},2));
  result.path=await walk(page,{x:45,z:-1});await page.waitForFunction(()=>window.__sealSmokeMotion.latest.mode==='surface');await screenshot('swimming');
- if(scenario.options.hasTouch)await page.getByRole('button',{name:'Plonger',exact:true}).tap();else{await page.locator('canvas.game-canvas').focus();await page.keyboard.press('KeyQ');}
+ if(scenario.options.hasTouch)await page.getByRole('button',{name:'Plonger sous la surface',exact:true}).tap();else{await page.locator('canvas.game-canvas').focus();await page.keyboard.press('KeyQ');}
  await page.waitForFunction(()=>window.__sealSmokeMotion.latest.mode==='underwater'&&window.__sealSmokeMotion.latest.y<-.35,undefined,{polling:100});await screenshot('underwater');
  if(scenario.fullJourney)result.echoes.push(await echo(page,'echo-profondeur',{x:45,z:-1},3));
- if(scenario.options.hasTouch)await page.getByRole('button',{name:'Remonter',exact:true}).tap();else{await page.locator('canvas.game-canvas').focus();await page.keyboard.press('Space');}
+ if(scenario.options.hasTouch)await page.getByRole('button',{name:'Remonter à la surface',exact:true}).tap();else{await page.locator('canvas.game-canvas').focus();await page.keyboard.press('Space');}
  await page.waitForFunction(()=>window.__sealSmokeMotion.latest.mode==='surface',undefined,{polling:100});
  if(scenario.fullJourney){await travel(page,'ruines',scenario);await walk(page,{x:80,z:-2});await action(page);await page.waitForFunction(()=>{try{return JSON.parse(localStorage.getItem('seal-odyssey:save')).state.progress.ancientSite.activated;}catch{return false;}},undefined,{timeout:10000});
  const state=await saved(page);assert.deepEqual([...state.progress.echoes.discovered].sort(),['echo-lagune','echo-profondeur','echo-rivage']);assert.equal(state.seals.luma.memory.echoes.length,3);await screenshot('ruins-restored');result.siteActivated=true;}

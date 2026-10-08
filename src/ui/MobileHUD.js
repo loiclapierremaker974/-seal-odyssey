@@ -288,7 +288,12 @@ export class MobileHUD {
     });
 
     this.element.querySelectorAll('[data-control]').forEach((control) => {
-      this.#bindPress(control, control.dataset.control);
+      if (control.dataset.control === 'care') {
+        // Open on the completed native click, after the touch is released.
+        control.addEventListener('click', () => this.options.onCare?.(true), {
+          signal: this.abortController.signal,
+        });
+      } else this.#bindPress(control, control.dataset.control);
     });
   }
 
