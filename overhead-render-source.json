@@ -1,0 +1,12 @@
+{
+  "sourceSha": "753d4eae0086c48dcd4b720d0d5b55358096e0c9",
+  "runId": 37805537931,
+  "status": "passed",
+  "capture": "Actual Chromium game frames",
+  "pictures": [
+    "overhead-world.jpg",
+    "overhead-world-portrait.jpg",
+    "overhead-combat.jpg",
+    "overhead-care.jpg"
+  ]
+}
