@@ -24,6 +24,34 @@ jobs:
         env:
           VITE_BASE_PATH: ./
           VITE_BUILD_ID: local-${{ github.sha }}
+      - name: Verify local launcher and HTTP assets
+        run: |
+          node --check scripts/serve-offline.mjs
+          node scripts/serve-offline.mjs &
+          task_server_pid=$!
+          trap 'kill "$task_server_pid"' EXIT
+          node --input-type=module -e '
+            
+            let response;
+            for(let attempt=0;attempt<30;attempt++){
+              try{response=await fetch("http://127.0.0.1:4173/");if(response.ok)break;}catch{}
+              await new Promise(resolve=>setTimeout(resolve,100));
+            }
+            if(!response?.ok)throw Error("Local server unavailable");
+            const html=await response.text();
+            let checkedAssets=0;
+            for(const [,path] of html.matchAll(/(?:src|href)="(\.\/assets\/[^"]+)"/g)){
+              const asset=await fetch(new URL(path,"http://127.0.0.1:4173/"));
+              if(!asset.ok)throw Error("Local compiled asset missing: "+path);
+              checkedAssets++;
+            }
+            if(checkedAssets<2)throw Error("No relative compiled JS/CSS assets found");
+            for(const path of ["assets/overworld/luma-directions.png","assets/overworld/props.png","assets/overworld/terrain.png"]){
+              const asset=await fetch("http://127.0.0.1:4173/"+path);
+              if(!asset.ok)throw Error("Offline artwork missing: "+path);
+            }
+            console.log("Local launcher serves the compiled game and original artwork.");
+          '
       - name: Collect tracked project and full history
         run: |
           mkdir -p "$RUNNER_TEMP/Seal-Odyssey"

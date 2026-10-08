@@ -331,6 +331,16 @@ async function journey(page,scenario,screenshot){
  const state=await saved(page);assert.deepEqual([...state.progress.echoes.discovered].sort(),['echo-lagune','echo-profondeur','echo-rivage']);assert.equal(state.seals.luma.memory.echoes.length,3);await screenshot('ruins-restored');result.siteActivated=true;}
  return result;
 }
+async function sceneryJourney(page,scenario){
+ const before=await page.locator('[data-echo-current]').textContent();
+ await travel(page,'rivage',scenario);await walk(page,{x:-2,z:4});await action(page);
+ await page.waitForFunction(()=>document.body.textContent.includes('Les sentiers fleuris rejoignent les berges.'));
+ assert.equal(await page.locator('[data-echo-current]').textContent(),before,'Reading scenery must preserve quest progress.');
+ await walk(page,{x:0,z:9});await walk(page,{x:9,z:9});await walk(page,{x:9,z:11});await action(page);
+ await page.waitForFunction(()=>window.__sealSmokeMotion?.latest?.islandId==='lagune');
+ assert.equal(await page.locator('[data-echo-current]').textContent(),before,'Dock travel must preserve quest progress.');
+ return {signRead:true,nativeDockTravel:true,questProgressPreserved:true};
+}
 async function persistence(page){
  const before=await saved(page);assert.equal(before.schemaVersion,1);assert.equal(before.progress.ancientSite.activated,true);assert.equal(before.seals.luma.memory.events.filter(e=>e?.type==='current-appeased'&&e.encounterId==='shore-remnant').length,1);
  await page.reload({waitUntil:'domcontentloaded'});await page.getByRole('button',{name:'Entrer dans Aqualys',exact:true}).waitFor({state:'visible',timeout:60000});await page.waitForFunction(()=>!document.querySelector('[data-start]').disabled);
@@ -481,9 +491,16 @@ async function runScenario(scenario) {
     assert.equal(result.beforeStart.canvas.worldArt,'overworld');
     result.nativeMovement=await nativeMove(page,scenario,captureSession);
     assert.equal((await motion(page)).mode,'land');
+    result.overheadFraming=await page.locator('canvas.game-canvas').evaluate(c=>({direction:c.dataset.direction,frame:c.dataset.spriteFrame,span:Number(c.dataset.cameraSpan)}));
+    assert.equal(result.overheadFraming.direction,'west','Native west movement must display the west-facing anatomy.');
+    assert.match(result.overheadFraming.frame,/^west[012]$/);
+    const aspect=scenario.options.viewport.width/scenario.options.viewport.height;
+    const expectedSpan=(aspect<1?7.4/aspect:10)*1.8;
+    assert.ok(Math.abs(result.overheadFraming.span-expectedSpan)<.15,'Camera must retain the example framing with only ten percent closer zoom.');
     result.bellyHop=await testBellyHop(page,scenario,screenshot);
     result.travelLayout=await travelLayout(page);
     result.care=await care(page,scenario,screenshot);
+    if(scenario.fullJourney)result.scenery=await sceneryJourney(page,scenario);
     result.journey=await journey(page,scenario,screenshot);
     if(scenario.fullJourney){result.combat=await testCombat(page,screenshot,scenario);result.persistence=await persistence(page);}
     result.afterInteractions = await captureRuntime(page);

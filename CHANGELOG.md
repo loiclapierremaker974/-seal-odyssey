@@ -2,6 +2,16 @@
 
 Les changements notables de cette reprise locale sont consignés ici. Le format suit l'esprit de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et les versions applicatives suivent le versionnage sémantique quand il devient pertinent.
 
+## [0.9.0] - 2026-10-08
+
+- Exploration construite comme une carte RPG vue de haut : chemins, berges, bosquets, places et pontons distincts.
+- Douze dessins originaux de Luma : trois poses pour chacune des quatre directions, sans rotation artificielle du personnage.
+- Import des silhouettes complètes et isolation alpha des ressources irrégulières ; chaque arbre, arche et rocher possède sa position et sa collision.
+- Cadrage rapproché de 10 % par rapport à la vue précédente, navigation compacte et icônes originales.
+- Accès dégagé à la lagune et aux Échos ; bornes, coquillage et embarquement au ponton.
+- Export local du dépôt, ressources, historique Git et jeu compilé, avec lanceur Windows et serveur local sans dépendances.
+- Le combat, les identifiants canoniques et la sauvegarde restent compatibles.
+
 ## [0.8.0] - 2026-10-08
 
 - Nouvelle exploration illustrée vue de haut, trois îles originales et voyages.
