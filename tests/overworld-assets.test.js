@@ -2,21 +2,25 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {decodePng} from './helpers/png.js';
-for(const [name,columns,rows]of [['luma-directions',4,3],['props',3,2]]){
- test('original '+name+' sprites have real alpha and isolated complete cells',async()=>{
-  const {rgba,width,height}=decodePng(await readFile(new URL('../public/assets/overworld/'+name+'.png',import.meta.url)));
-  let zeros=0;for(let p=3;p<rgba.length;p+=4)if(rgba[p]===0)zeros++;
-  const cells=[];
-  for(let row=0;row<rows;row++)for(let col=0;col<columns;col++){
-   const x0=Math.floor(col*width/columns),x1=Math.floor((col+1)*width/columns),y0=Math.floor(row*height/rows),y1=Math.floor((row+1)*height/rows);let x=x1,y=y1,right=0,bottom=0,n=0;
-   for(let yy=y0;yy<y1;yy++)for(let xx=x0;xx<x1;xx++)if(rgba[(yy*width+xx)*4+3]>=128){x=Math.min(x,xx);y=Math.min(y,yy);right=Math.max(right,xx);bottom=Math.max(bottom,yy);n++;}
-   cells.push({col,row,x:x-x0,y:y-y0,right:right-x0,bottom:bottom-y0,count:n,cellWidth:x1-x0,cellHeight:y1-y0});
-  }
-  console.log(name,JSON.stringify({width,height,zeroRatio:zeros/(width*height),cells}));
-  assert.ok(zeros/(width*height)>.25,'Sprites require genuine transparent background');
-  for(const c of cells){assert.ok(c.count>300);assert.ok(c.x>1&&c.y>1&&c.right<c.cellWidth-2&&c.bottom<c.cellHeight-2,'Complete isolated cell '+JSON.stringify(c));}
+import {extractSpriteComponents} from '../src/world/overworldAtlas.js';
+for(const [name,cols,rows]of [['luma-directions',4,3],['props',3,2]]){
+ test('actual '+name+' PNG has complete isolated component frames',async()=>{
+  const {rgba,width,height}=decodePng(await readFile(new URL('../public/assets/overworld/'+name+'.png',import.meta.url))),names=Array.from({length:cols*rows},(_,i)=>String(i)),atlas=extractSpriteComponents(rgba,width,height,cols,rows,names);
+  console.log(name,JSON.stringify({width,height,alpha:atlas.transparentRatio,components:atlas.components.map(c=>({count:c.count,x:c.x,y:c.y,right:c.right,bottom:c.bottom,cx:c.cx,cy:c.cy}))}));
+  assert.equal(Object.keys(atlas.frames).length,cols*rows);assert.ok(atlas.transparentRatio>.25);
+  for(const [key,f]of Object.entries(atlas.frames)){assert.ok(f.width>32&&f.height>32);assert.ok(f.uv.every(v=>v>=0&&v<=1));assert.ok(atlas.mask.includes(f.component),'Each UV frame needs its own mask');}
+  for(let row=0;row<rows;row++)for(let col=1;col<cols;col++)assert.ok(atlas.components[row*cols+col].cx>atlas.components[row*cols+col-1].cx);
  });
 }
-test('original terrain atlas holds six sufficiently detailed material tiles',async()=>{
+test('source terrain atlas contains six detailed material swatches',async()=>{
  const {width,height}=decodePng(await readFile(new URL('../public/assets/overworld/terrain.png',import.meta.url)));assert.ok(width>=768&&height>=512);assert.ok(Math.abs(width/height-1.5)<.1);
+});
+test('component import never samples an adjacent sprite inside an overlapping crop rectangle',()=>{
+ const w=32,h=32,rgba=new Uint8Array(w*h*4);
+ for(let y=4;y<28;y++)for(let x=4;x<28;x++){const outer=x<7||y<7||y>24,inner=x>12&&x<20&&y>12&&y<20;if(outer||inner)rgba[(y*w+x)*4+3]=255;}
+ // Larger fixture components require more than 700 pixels; scale the image.
+ const scale=8,data=new Uint8Array(w*h*scale*scale*4);
+ for(let y=0;y<h*scale;y++)for(let x=0;x<w*scale;x++)data[(y*w*scale+x)*4+3]=rgba[(Math.floor(y/scale)*w+Math.floor(x/scale))*4+3];
+ const a=extractSpriteComponents(data,w*scale,h*scale,2,1,['outer','inner']);
+ assert.equal(a.frames.outer.component,1);assert.equal(a.frames.inner.component,2);assert.notEqual(a.mask[16*scale*w*scale+16*scale],a.mask[5*scale*w*scale+5*scale]);
 });
