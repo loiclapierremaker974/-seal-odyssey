@@ -46,7 +46,11 @@ export function createOverworld(island){
  const c=island.center,protectedPoint=(x,z)=>Math.hypot(x-island.spawn.x+c.x,z-island.spawn.z+c.z)<2.3
   ||(island.echoes||[]).some(e=>Math.hypot(x-(e.x-c.x),z-(e.z-c.z))<2)
   ||(island.site&&Math.hypot(x-(island.site.x-c.x),z-(island.site.z-c.z))<3)
-  ||paths.some(([a,b])=>segmentDistance(x,z,a,b)<1.65);
+  ||paths.some(([a,b])=>segmentDistance(x,z,a,b)<1.65)
+  // Keep a clear route from the southern beach into the lagoon and its Echoes.
+  ||(island.id==='lagune'&&segmentDistance(x,z,[0,8],[0,-2])<1.2)
+  ||(island.id==='lagune'&&segmentDistance(x,z,[0,1],[-3,1])<1.2)
+  ||(island.id==='lagune'&&segmentDistance(x,z,[0,-1],[5,-1])<1.2);
  const add=(kind,x,z,size,radius=0)=>{const p={kind,x:x+c.x,z:z+c.z,size,phase:hash(x,z,3)*Math.PI*2};map.props.push(p);if(radius>0)map.colliders.push({x:p.x,z:p.z,radius});return p;};
  // Curated forest belts; only the decorations within each belt vary.
  for(let z=-10.5;z<=8;z+=2.6)for(let x=-10.5;x<=10.5;x+=2.6){

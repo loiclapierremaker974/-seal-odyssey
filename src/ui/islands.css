@@ -54,3 +54,13 @@
 @media(orientation:landscape) and (max-width:620px){.island-navigator{top:calc(var(--safe-top) + 104px)}}
 @media(prefers-reduced-motion:reduce){.island-route{transition:none}.island-route:hover:not(:disabled),.island-route:active:not(:disabled){transform:none}}
 @media(prefers-contrast:more){.island-route{background:#083c49;border-color:#f4dfb2}.island-route.is-current{background:#185f60;border-width:2px}.island-route__status{color:#fff4d6}}
+
+/* Compact original wayfinding leaves the playable landscape visible. */
+.island-navigator{top:calc(var(--safe-top) + 68px)}
+.island-navigator__heading{margin-bottom:5px}
+.island-navigator__kicker{display:none}
+.island-navigator__title{font-size:.92rem}
+.island-route{min-height:46px;border-radius:12px 12px 12px 4px;padding:4px 7px;gap:6px}
+.island-route__portrait{flex-basis:24px;width:24px;height:28px;color:#e9cd91}
+.island-route__portrait svg{width:24px;height:24px;filter:drop-shadow(0 1px 2px #092b32)}
+@media(max-width:600px) and (orientation:portrait){.island-navigator{top:calc(var(--safe-top) + 100px)}.island-route{min-height:46px}.island-route__portrait{flex-basis:20px;width:20px}.island-route__portrait svg{width:20px;height:20px}}

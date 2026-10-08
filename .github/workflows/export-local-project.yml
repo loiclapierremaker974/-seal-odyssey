@@ -1,0 +1,39 @@
+name: Export complete local Seal Odyssey
+on:
+  push:
+    branches: ['codex/overhead-world-2026-10-08']
+    paths: ['.github/workflows/export-local-project.yml','PROJET-LOCAL.md','scripts/serve-offline.mjs']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - run: npm install --global pnpm@11.19.0
+      - run: pnpm install --frozen-lockfile
+      - name: Build portable relative-path game
+        run: pnpm build
+        env:
+          VITE_BASE_PATH: ./
+          VITE_BUILD_ID: local-${{ github.sha }}
+      - name: Collect tracked project and full history
+        run: |
+          mkdir -p "$RUNNER_TEMP/Seal-Odyssey"
+          git archive HEAD | tar -x -C "$RUNNER_TEMP/Seal-Odyssey"
+          cp -R dist "$RUNNER_TEMP/Seal-Odyssey/dist"
+          git bundle create "$RUNNER_TEMP/Seal-Odyssey/seal-odyssey-history.bundle" --all
+          git rev-parse HEAD > "$RUNNER_TEMP/Seal-Odyssey/SOURCE-COMMIT.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Seal-Odyssey-projet-local-complet
+          path: ${{ runner.temp }}/Seal-Odyssey/
+          include-hidden-files: true
+          retention-days: 90

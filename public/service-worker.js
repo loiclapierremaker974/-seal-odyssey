@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'seal-odyssey-p0-0.8.0';
+const CACHE_VERSION = 'seal-odyssey-p0-0.9.0';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const APP_SHELL = [
   './',

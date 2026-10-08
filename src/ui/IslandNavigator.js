@@ -18,7 +18,8 @@ export class IslandNavigator{
   this.list=node('div','island-navigator__routes');this.list.setAttribute('aria-busy','false');this.live=node('p','sr-only');this.live.setAttribute('role','status');this.live.setAttribute('aria-live','polite');this.live.setAttribute('aria-atomic','true');
   for(const i of this.islands.values()){
    const button=node('button','island-route');button.type='button';button.dataset.travel=i.id;const portrait=node('span','island-route__portrait');portrait.setAttribute('aria-hidden','true');
-   if(i.image){const image=node('img','island-route__image');image.src=i.image;image.alt='';image.width=54;image.height=54;image.decoding='async';image.draggable=false;portrait.append(image);}
+   const glyphs={rivage:'<path d="M3 15c4-5 6 5 10 0s6 5 10 0M4 20c4-4 6 4 10 0s5 4 8 0"/><circle cx="18" cy="6" r="3"/>',lagune:'<path d="M13 22V11M13 15C4 15 3 8 4 4c8 0 10 6 9 11ZM13 18c9 0 10-7 9-11-8 0-10 6-9 11Z"/>',ruines:'<path d="M4 22V10a9 9 0 0 1 18 0v12M9 22V10a4 4 0 0 1 8 0v12M2 22h9m4 0h9"/>'};
+   portrait.innerHTML='<svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">'+(glyphs[i.id]||glyphs.rivage)+'</svg>';
    const copy=node('span','island-route__copy'),name=node('span','island-route__name',i.shortName),status=node('span','island-route__status');copy.append(name,status);
    const marker=node('span','island-route__marker');marker.setAttribute('aria-hidden','true');button.append(portrait,copy,marker);
    button.addEventListener('click',()=>this.requestTravel(i.id),{signal:this.abortController.signal});this.buttons.set(i.id,{button,status});this.list.append(button);
